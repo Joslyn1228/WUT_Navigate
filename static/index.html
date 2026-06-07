@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>武汉理工大学智能导游</title>
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.15&key=e5342acb04e2c397533ff69ed0dc445f"></script>
+    <!-- 加载外部样式 -->
+    <link rel="stylesheet" href="/static/css/style.css">
+
+
+</head>
+<body>
+    <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+    
+    <div class="container-wrapper">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>🗺️ 武理导航</h1>
+                <div class="subtitle">武汉理工大学智能导游</div>
+            </div>
+            <div class="sidebar-nav">
+                <div class="nav-item active" onclick="switchTab('profile')">
+                    <span class="nav-item-icon">👤</span>
+                    <span class="nav-item-text">我的</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('checkin')">
+                    <span class="nav-item-icon">🎯</span>
+                    <span class="nav-item-text">打卡</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('community')">
+                    <span class="nav-item-icon">💬</span>
+                    <span class="nav-item-text">社区</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('fitness')">
+                    <span class="nav-item-icon">🏃</span>
+                    <span class="nav-item-text">运动</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('guide')">
+                    <span class="nav-item-icon">🏛️</span>
+                    <span class="nav-item-text">讲解</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent">
+            <div class="content-container">
+                <!-- 实时讲解页面 -->
+                <div id="guide" class="tab-content">
+                    <div class="location-indicator" id="guideLocation">
+                        <span>📍</span>
+                        <span>获取位置中...</span>
+                    </div>
+
+                    <div class="card" id="nearbyAlert" style="display: none; background: linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%); color: white;">
+                        <h3 style="margin-bottom: 12px;">🎉 您已接近 <span id="nearbyPlaceName"></span></h3>
+                        <p id="nearbyPlaceDesc" style="font-size: 0.9rem; margin-bottom: 14px; opacity: 0.95;"></p>
+                        <div style="display: flex; gap: 12px;">
+                            <button class="btn" style="background: white; color: #1e3a5f;" onclick="speakCurrentPlace()">🔊 收听介绍</button>
+                            <button class="btn" style="background: rgba(255,255,255,0.2); color: white;" onclick="closeNearbyAlert()">稍后再说</button>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <span>🏛️</span>
+                        <span>校内景点</span>
+                        <button class="btn btn-secondary btn-sm" style="margin-left: auto;" onclick="openGuideMap()">🗺️ 地图</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">选择类别</span>
+                        </div>
+                        <div class="category-tabs" id="categoryTabs">
+                            <button class="btn btn-primary btn-sm" onclick="currentCategory='all'; displayGuidePlaces();">全部</button>
+                        </div>
+                    </div>
+
+                    <div id="placesList">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+
+                    <div class="modal-overlay" id="placeModal" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header" id="placeModalTitle">景点详情</div>
+                            <div class="modal-body" id="placeModalBody">
+                                <p id="placeDescription">景点介绍将显示在这里...</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" onclick="closePlaceModal()">关闭</button>
+                                <button class="btn btn-primary" onclick="speakIntroduction()">🔊 语音讲解</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-overlay" id="guideMapModal" style="display: none;">
+                        <div class="modal-content" style="max-width: 640px;">
+                            <div class="modal-header">📍 校园地图（500米范围）</div>
+                            <div style="height: 380px; border-radius: 16px; overflow: hidden; margin-bottom: 16px;">
+                                <div id="guideMapContainer" style="width: 100%; height: 100%;"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span id="guideMapInfo" style="font-size: 0.875rem; color: var(--light-text);">加载中...</span>
+                                <button class="btn btn-secondary" onclick="closeGuideMap()">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 运动健康页面 -->
+                <div id="fitness" class="tab-content">
+                    <div class="workout-card" id="workoutCard">
+                        <div class="workout-status" id="workoutStatus">🏃 准备开始运动</div>
+                        <div class="workout-stats">
+                            <div class="workout-stat">
+                                <div class="workout-stat-value" id="workoutDistance">0</div>
+                                <div class="workout-stat-label">距离(m)</div>
+                            </div>
+                            <div class="workout-stat">
+                                <div class="workout-stat-value" id="workoutDuration">0</div>
+                                <div class="workout-stat-label">时间(s)</div>
+                            </div>
+                            <div class="workout-stat">
+                                <div class="workout-stat-value" id="workoutCalories">0</div>
+                                <div class="workout-stat-label">卡路里</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-block" id="workoutButton" onclick="toggleWorkout()">开始运动</button>
+                    </div>
+
+                    <div class="section-title">
+                        <span>📊</span>
+                        <span>运动统计</span>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="statDistance">0</div>
+                            <div class="stat-label">本周距离(m)</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statCalories">0</div>
+                            <div class="stat-label">本周卡路里</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statWorkouts">0</div>
+                            <div class="stat-label">本周次数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statTotal">0</div>
+                            <div class="stat-label">累计距离(m)</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <span>📝</span>
+                        <span>运动历史</span>
+                    </div>
+                    <div id="workoutHistory">
+                        <div class="empty-state">
+                            <div class="empty-icon">🏃</div>
+                            <p>暂无运动记录</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 打卡页面 -->
+                <div id="checkin" class="tab-content">
+                    <div class="location-indicator" id="checkinLocation">
+                        <span>📍</span>
+                        <span>获取位置中...</span>
+                    </div>
+
+                    <button class="checkin-button" id="checkinButton" onclick="checkin()">
+                        🎯 点击打卡
+                    </button>
+
+                    <div id="currentActivityBanner" class="current-activity-banner" style="display: none;">
+                        <div class="activity-badge">🔥 当前可参与</div>
+                        <div class="activity-info">
+                            <span class="activity-icon" id="currentActivityIcon"></span>
+                            <span class="activity-name" id="currentActivityName"></span>
+                        </div>
+                        <div class="activity-time" id="currentActivityTime"></div>
+                    </div>
+
+                    <div class="section-title">
+                        <span>🎯</span>
+                        <span>打卡活动</span>
+                    </div>
+                    <div class="activities-grid" id="activitiesGrid">
+                    </div>
+
+                    <div class="achievements-header">
+                        <div class="achievements-stats">
+                            <div class="achievements-stat">
+                                <div class="achievements-stat-value" id="achievementsUnlocked">0</div>
+                                <div class="achievements-stat-label">已解锁</div>
+                            </div>
+                            <div class="achievements-stat">
+                                <div class="achievements-stat-value" id="achievementsTotal">12</div>
+                                <div class="achievements-stat-label">总成就</div>
+                            </div>
+                            <div class="achievements-stat">
+                                <div class="achievements-stat-value" id="achievementsPercent">0%</div>
+                                <div class="achievements-stat-label">完成率</div>
+                            </div>
+                        </div>
+                        <div class="achievements-filter">
+                            <button class="filter-btn active" onclick="filterAchievements('all')">全部</button>
+                            <button class="filter-btn" onclick="filterAchievements('unlocked')">已解锁</button>
+                            <button class="filter-btn" onclick="filterAchievements('locked')">未解锁</button>
+                            <button class="filter-btn" onclick="filterAchievements('hidden')">隐藏</button>
+                        </div>
+                    </div>
+
+                    <div class="achievements-grid" id="achievementsGrid">
+                    </div>
+
+                    <div class="section-title">
+                        <span>📊</span>
+                        <span>打卡统计</span>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="checkinTotal">0</div>
+                            <div class="stat-label">总打卡次数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="checkinStreak">0</div>
+                            <div class="stat-label">连续打卡天数</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <span>📝</span>
+                        <span>打卡历史</span>
+                    </div>
+                    <div id="checkinHistory">
+                        <div class="empty-state">
+                            <div class="empty-icon">📝</div>
+                            <p>暂无打卡记录</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 社区页面 -->
+                <div id="community" class="tab-content">
+                    <div class="card">
+                        <div class="post-upload-section">
+                            <textarea class="input-field" id="postContent" rows="4" placeholder="分享你的校园生活..."></textarea>
+                        </div>
+                        
+                        <div class="location-picker" id="postLocationPicker">
+                            <button class="location-btn" onclick="getPostLocation()">📍</button>
+                            <div class="location-info" id="postLocationInfo">
+                                <div class="location-empty">点击获取当前位置</div>
+                            </div>
+                        </div>
+                        
+                        <input type="hidden" id="postLocationName">
+                        <input type="hidden" id="postCampus">
+                        
+                        <div class="image-upload-container" id="imageUploadContainer" onclick="triggerImageUpload()">
+                            <input type="file" id="imageUploadInput" accept="image/*" multiple style="display: none;" onchange="handleImageUpload(event)">
+                            <div class="image-upload-btn" id="imageUploadBtn">
+                                <span class="image-upload-btn-icon">📷</span>
+                                <span class="image-upload-btn-text">添加图片（最多9张）</span>
+                            </div>
+                            <div class="uploaded-images-grid" id="uploadedImagesGrid"></div>
+                        </div>
+                        
+                        <button class="btn btn-primary btn-block" onclick="createPost()">发布动态</button>
+                    </div>
+
+                    <div id="communityFeed">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 图片预览弹窗 -->
+                <div class="image-preview-overlay" id="imagePreviewOverlay" onclick="closeImagePreview()">
+                    <div class="image-preview-container" onclick="event.stopPropagation()">
+                        <button class="image-preview-close" onclick="closeImagePreview()">×</button>
+                        <button class="image-preview-nav prev" onclick="prevImagePreview()">‹</button>
+                        <img id="previewImage">
+                        <button class="image-preview-nav next" onclick="nextImagePreview()">›</button>
+                        <div class="image-preview-counter" id="imagePreviewCounter">1/1</div>
+                    </div>
+                </div>
+
+                <!-- 个人中心页面 -->
+                <div id="profile" class="tab-content active">
+                    <div class="login-form" id="loginForm">
+                        <h3 class="modal-header">🔐 用户登录</h3>
+                        <input type="email" class="input-field" id="loginEmail" placeholder="邮箱地址">
+                        <input type="password" class="input-field" id="loginPassword" placeholder="密码">
+                        <div class="login-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="rememberMe">
+                                <span>记住我</span>
+                            </label>
+                            <a href="#" onclick="showForgotPassword()" class="forgot-link">忘记密码？</a>
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="login()">登录</button>
+                        <div class="login-link">
+                            还没有账号？<a href="#" onclick="showRegister()">立即注册</a>
+                        </div>
+                    </div>
+
+                    <div class="login-form" id="registerForm" style="display: none;">
+                        <h3 class="modal-header">📝 用户注册</h3>
+                        <div class="form-group">
+                            <input type="text" class="input-field" id="regNickname" placeholder="昵称（2-20个字符，中英文、数字、下划线）">
+                            <span class="validation-message" id="nicknameValidation"></span>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" class="input-field" id="regEmail" placeholder="邮箱地址">
+                            <span class="validation-message" id="emailValidation"></span>
+                        </div>
+                        <div class="form-group">
+                            <input type="password" class="input-field" id="regPassword" placeholder="密码（8-20位，包含大小写字母、数字、特殊符号至少两种）">
+                            <span class="validation-message" id="passwordValidation"></span>
+                        </div>
+                        <div class="form-group">
+                            <input type="password" class="input-field" id="regConfirmPassword" placeholder="确认密码">
+                            <span class="validation-message" id="confirmPasswordValidation"></span>
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="register()">注册</button>
+                        <div class="login-link">
+                            已有账号？<a href="#" onclick="showLogin()">立即登录</a>
+                        </div>
+                    </div>
+
+                    <div class="login-form" id="forgotPasswordForm" style="display: none;">
+                        <h3 class="modal-header">🔑 忘记密码</h3>
+                        <input type="email" class="input-field" id="forgotEmail" placeholder="请输入注册时的邮箱">
+                        <button class="btn btn-primary btn-block" onclick="forgotPassword()">发送重置链接</button>
+                        <div class="login-link">
+                            返回 <a href="#" onclick="showLogin()">登录</a>
+                        </div>
+                    </div>
+
+                    <div id="profileContent" style="display: none;">
+                        <div class="profile-info">
+                            <div class="profile-avatar-container">
+                                <div class="profile-avatar" id="profileAvatar">👤</div>
+                                <button class="avatar-edit-btn" onclick="showAvatarPicker()">📷</button>
+                            </div>
+                            <div class="profile-name" id="profileName">用户名</div>
+                            <div class="profile-status" id="profileStatus"></div>
+                            <div class="profile-email" id="profileEmail">email@example.com</div>
+                            <div class="profile-bio" id="profileBio"></div>
+                        </div>
+
+                        <div class="profile-stats">
+                            <div class="profile-stat">
+                                <div class="profile-stat-value" id="profileCheckins">0</div>
+                                <div class="profile-stat-label">打卡次数</div>
+                            </div>
+                            <div class="profile-stat">
+                                <div class="profile-stat-value" id="profileWorkouts">0</div>
+                                <div class="profile-stat-label">运动次数</div>
+                            </div>
+                            <div class="profile-stat">
+                                <div class="profile-stat-value" id="profilePosts">0</div>
+                                <div class="profile-stat-label">发布动态</div>
+                            </div>
+                        </div>
+
+                        <div class="list-group">
+                            <div class="list-item" onclick="showEditProfile()">
+                                <div class="list-icon" style="background: var(--bg-gradient);">👤</div>
+                                <div class="list-content">
+                                    <div class="list-title">编辑资料</div>
+                                    <div class="list-subtitle">修改个人信息</div>
+                                </div>
+                                <span>→</span>
+                            </div>
+                            <div class="list-item" onclick="switchTab('checkin')">
+                                <div class="list-icon" style="background: var(--warning-color);">🎯</div>
+                                <div class="list-content">
+                                    <div class="list-title">打卡记录</div>
+                                    <div class="list-subtitle">查看我的打卡</div>
+                                </div>
+                                <span>→</span>
+                            </div>
+                            <div class="list-item" onclick="switchTab('fitness')">
+                                <div class="list-icon" style="background: var(--success-color);">🏃</div>
+                                <div class="list-content">
+                                    <div class="list-title">运动记录</div>
+                                    <div class="list-subtitle">查看我的运动</div>
+                                </div>
+                                <span>→</span>
+                            </div>
+                            <div class="list-item" onclick="switchTab('community')">
+                                <div class="list-icon" style="background: var(--secondary-color);">📱</div>
+                                <div class="list-content">
+                                    <div class="list-title">我的动态</div>
+                                    <div class="list-subtitle">查看我的发布</div>
+                                </div>
+                                <span>→</span>
+                            </div>
+                        </div>
+
+                        <button class="logout-btn" onclick="logout()">退出登录</button>
+                    </div>
+
+                    <!-- 编辑资料模态框 -->
+                    <div id="editProfileModal" class="modal-overlay" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>编辑资料</h3>
+                                <button class="modal-close" onclick="closeEditProfile()">✕</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>个性签名</label>
+                                    <textarea class="input-field" id="editBio" rows="3" placeholder="说说你的故事..."></textarea>
+                                    <span class="validation-message"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label>当前状态</label>
+                                    <div class="status-picker" id="statusPicker">
+                                        <button class="status-btn" onclick="selectStatus('😊')">😊</button>
+                                        <button class="status-btn" onclick="selectStatus('🤔')">🤔</button>
+                                        <button class="status-btn" onclick="selectStatus('😎')">😎</button>
+                                        <button class="status-btn" onclick="selectStatus('💪')">💪</button>
+                                        <button class="status-btn" onclick="selectStatus('📚')">📚</button>
+                                        <button class="status-btn" onclick="selectStatus('🎯')">🎯</button>
+                                        <button class="status-btn" onclick="selectStatus('🏃')">🏃</button>
+                                        <button class="status-btn" onclick="selectStatus('☕')">☕</button>
+                                        <button class="status-btn" onclick="selectStatus('🎵')">🎵</button>
+                                        <button class="status-btn" onclick="selectStatus('🎨')">🎨</button>
+                                        <button class="status-btn" onclick="selectStatus('🎮')">🎮</button>
+                                        <button class="status-btn" onclick="selectStatus('💤')">💤</button>
+                                    </div>
+                                    <div class="status-preview" id="statusPreview"></div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" onclick="closeEditProfile()">取消</button>
+                                <button class="btn btn-primary" onclick="saveProfile()">保存</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 头像选择器模态框 -->
+                    <div id="avatarPickerModal" class="modal-overlay" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>选择头像</h3>
+                                <button class="modal-close" onclick="closeAvatarPicker()">✕</button>
+                            </div>
+                            <div class="modal-body">
+                                <div style="margin-bottom: 20px;">
+                                    <label class="btn btn-secondary btn-block" style="cursor: pointer;">
+                                        📤 从本地上传照片
+                                        <input type="file" accept="image/*" id="avatarFileInput" onchange="handleAvatarUpload(event)" style="display: none;">
+                                    </label>
+                                </div>
+                                <div class="avatar-grid" id="avatarGrid">
+                                    <button class="avatar-option" onclick="selectAvatar('👤')">👤</button>
+                                    <button class="avatar-option" onclick="selectAvatar('👩')">👩</button>
+                                    <button class="avatar-option" onclick="selectAvatar('👨')">👨</button>
+                                    <button class="avatar-option" onclick="selectAvatar('🧑')">🧑</button>
+                                    <button class="avatar-option" onclick="selectAvatar('👧')">👧</button>
+                                    <button class="avatar-option" onclick="selectAvatar('👦')">👦</button>
+                                    <button class="avatar-option" onclick="selectAvatar('👩‍💼')">👩‍💼</button>
+                                    <button class="avatar-option" onclick="selectAvatar('👨‍💼')">👨‍💼</button>
+                                    <button class="avatar-option" onclick="selectAvatar('🎓')">🎓</button>
+                                    <button class="avatar-option" onclick="selectAvatar('📚')">📚</button>
+                                    <button class="avatar-option" onclick="selectAvatar('💡')">💡</button>
+                                    <button class="avatar-option" onclick="selectAvatar('⭐')">⭐</button>
+                                    <button class="avatar-option" onclick="selectAvatar('🔥')">🔥</button>
+                                    <button class="avatar-option" onclick="selectAvatar('💎')">💎</button>
+                                    <button class="avatar-option" onclick="selectAvatar('🌈')">🌈</button>
+                                    <button class="avatar-option" onclick="selectAvatar('🦋')">🦋</button>
+                                </div>
+                                <div id="uploadedAvatarPreview" style="display: none; margin-top: 20px; text-align: center;">
+                                    <img id="previewImage" style="max-width: 150px; max-height: 150px; border-radius: 50%;">
+                                    <p style="margin-top: 10px; color: #666;">预览</p>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" onclick="closeAvatarPicker()">取消</button>
+                                <button class="btn btn-primary" onclick="saveAvatar()">保存</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 悬浮聊天按钮和面板 -->
+    <button class="floating-chat-btn" id="floatingChatBtn" onclick="toggleChatPanel()">🤖</button>
+    
+    <div class="floating-chat-panel" id="floatingChatPanel">
+        <div class="floating-chat-header">
+            <h3>🗺️ 智能导航助手</h3>
+            <button class="close-chat-btn" onclick="toggleChatPanel()">×</button>
+        </div>
+        <div class="chat-container" id="chatContainer">
+            <div class="message bot">
+                <div class="avatar bot">🤖</div>
+                <div class="message-content">您好！我是武汉理工大学智能导游，请问您想去哪里？</div>
+            </div>
+        </div>
+        <div class="chat-input-container">
+            <button class="btn btn-secondary btn-sm" onclick="getCurrentLocation()">📍</button>
+            <input type="text" class="input-field" id="navInput" placeholder="输入目的地，如：南湖图书馆" onkeydown="handleNavKeydown(event)">
+            <button class="btn btn-primary btn-sm" onclick="sendNavMessage()">发送</button>
+        </div>
+    </div>
+
+    <!-- 地图弹窗 -->
+    <div class="map-container-wrapper" id="mapWrapper">
+        <div class="map-content">
+            <div class="map-header">
+                <h3>🗺️ 导航地图</h3>
+                <button class="close-btn" onclick="closeMap()">×</button>
+            </div>
+            
+            <div class="map-container" id="map"></div>
+            <div class="nav-action">
+                <button id="openGaodeBtn" class="gaode-btn" onclick="openGaodeNavigation()">
+                    🗺️ 在高德地图中导航
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载外部脚本 -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
