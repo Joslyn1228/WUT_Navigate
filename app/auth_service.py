@@ -123,23 +123,24 @@ class DBWorkout(Base):
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(String, index=True)
-    workout_type = Column(String)  # walking, running, cycling
+    workout_type = Column(String)
     start_time = Column(DateTime)
-    end_time = Column(DateTime, nullable=True)
-    total_distance = Column(Float, default=0.0)  # 米
-    total_duration = Column(Integer, default=0)  # 秒
+    end_time = Column(DateTime)
+    total_distance = Column(Float, default=0.0)
+    total_duration = Column(Integer, default=0)
     calories_burned = Column(Float, default=0.0)
-    avg_speed = Column(Float, default=0.0)  # km/h
-    created_at = Column(DateTime)
+    avg_speed = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.now)
 
 class DBWorkoutRoute(Base):
     __tablename__ = "workout_routes"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workout_id = Column(Integer, index=True)
-    latitude = Column(Float)
-    longitude = Column(Float)
-    recorded_at = Column(DateTime)
+    latitude = Column(Float, default=0.0)
+    longitude = Column(Float, default=0.0)
+    timestamp = Column(DateTime)
+    sequence = Column(Integer, default=0)
 
 Base.metadata.create_all(bind=engine)
 

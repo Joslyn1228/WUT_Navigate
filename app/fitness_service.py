@@ -15,6 +15,9 @@ from .auth_service import SessionLocal, DBWorkout, DBWorkoutRoute
 class FitnessService:
     """运动健康服务"""
     
+    def __init__(self):
+        self.current_workouts: Dict[str, Workout] = {}
+    
     def calculate_calories(
         self,
         workout_type: WorkoutType,
@@ -32,7 +35,6 @@ class FitnessService:
         Returns:
             消耗的卡路里
         """
-        # MET值（代谢当量）
         met_values = {
             WorkoutType.WALKING: 3.5,
             WorkoutType.RUNNING: 8.0,
@@ -40,64 +42,36 @@ class FitnessService:
         }
         
         met = met_values.get(workout_type, 5.0)
+        weight = weight_kg if weight_kg else 65.0
         
-        # 公式：卡路里 = MET × 体重(kg) × 时间(h)
-        # 如果没有体重，使用默认值
-        weight = weight_kg or 70.0
-        hours = duration_minutes / 60.0
-        
-        calories = met * weight * hours
+        calories = met * weight * (duration_minutes / 60)
         return round(calories, 2)
     
-    def calculate_distance(
-        self,
-        route_points: List[Location]
-    ) -> float:
+    def calculate_distance(self, loc1: Location, loc2: Location) -> float:
         """
-        计算路线距离（米）
+        计算两点之间的距离（米）
         
         Args:
-            route_points: 路线坐标点列表
+            loc1: 位置1
+            loc2: 位置2
             
         Returns:
-            总距离（米）
+            距离（米）
         """
-        if len(route_points) < 2:
-            return 0.0
+        lat1, lon1 = loc1.latitude, loc1.longitude
+        lat2, lon2 = loc2.latitude, loc2.longitude
         
-        total_distance = 0.0
-        
-        for i in range(1, len(route_points)):
-            total_distance += self._haversine_distance(
-                route_points[i-1].latitude,
-                route_points[i-1].longitude,
-                route_points[i].latitude,
-                route_points[i].longitude
-            )
-        
-        return round(total_distance, 2)
-    
-    def _haversine_distance(
-        self,
-        lat1: float,
-        lon1: float,
-        lat2: float,
-        lon2: float
-    ) -> float:
-        """
-        Haversine公式计算两点间距离（米）
-        """
-        R = 6371000  # 地球半径（米）
-        
+        R = 6371000
         phi1 = math.radians(lat1)
         phi2 = math.radians(lat2)
         delta_phi = math.radians(lat2 - lat1)
         delta_lambda = math.radians(lon2 - lon1)
         
-        a = math.sin(delta_phi/2)**2 + \
+        a = math.sin(delta_phi / 2) ** 2 + \
             math.cos(phi1) * math.cos(phi2) * \
-            math.sin(delta_lambda/2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            math.sin(delta_lambda / 2) ** 2
+        
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         
         return R * c
     
@@ -120,31 +94,32 @@ class FitnessService:
         """
         db = SessionLocal()
         try:
-            now = datetime.now()
-            
-            # 创建运动记录
-            db_workout = DBWorkout(
+            new_workout = DBWorkout(
                 user_id=user_id,
                 workout_type=workout_type.value,
-                start_time=now,
-                created_at=now
+                start_time=datetime.now()
             )
-            db.add(db_workout)
+            
+            db.add(new_workout)
             db.commit()
-            db.refresh(db_workout)
+            db.refresh(new_workout)
             
-            # 如果有起始位置，添加路线点
-            if start_location:
-                db_route = DBWorkoutRoute(
-                    workout_id=db_workout.id,
-                    latitude=start_location.latitude,
-                    longitude=start_location.longitude,
-                    recorded_at=now
-                )
-                db.add(db_route)
-                db.commit()
+            workout = Workout(
+                workout_id=new_workout.id,
+                user_id=user_id,
+                workout_type=workout_type,
+                start_time=new_workout.start_time,
+                start_location=start_location,
+                end_time=None,
+                end_location=None,
+                duration=0,
+                distance=0.0,
+                calories=0.0,
+                route=[]
+            )
             
-            return db_workout.id
+            self.current_workouts[user_id] = workout
+            return new_workout.id
         finally:
             db.close()
     
@@ -152,10 +127,10 @@ class FitnessService:
         self,
         user_id: str,
         workout_id: int,
-        location: Location
-    ) -> Dict[str, Any]:
+        location: Optional[Location] = None
+    ) -> bool:
         """
-        更新运动（添加路线点）
+        更新运动位置
         
         Args:
             user_id: 用户ID
@@ -163,60 +138,45 @@ class FitnessService:
             location: 当前位置
             
         Returns:
-            更新信息
+            是否更新成功
         """
-        db = SessionLocal()
-        try:
-            # 查询运动记录
-            workout = db.query(DBWorkout).filter(
-                DBWorkout.id == workout_id,
-                DBWorkout.user_id == user_id,
-                DBWorkout.end_time.is_(None)
-            ).first()
+        if user_id not in self.current_workouts:
+            return False
+        
+        workout = self.current_workouts[user_id]
+        
+        if location and workout.start_location:
+            distance_added = self.calculate_distance(workout.start_location, location)
+            workout.distance += distance_added
+        
+        if location:
+            workout.route.append({
+                'latitude': location.latitude,
+                'longitude': location.longitude,
+                'timestamp': datetime.now()
+            })
             
-            if not workout:
-                raise ValueError("No active workout found")
-            
-            # 添加路线点
-            db_route = DBWorkoutRoute(
-                workout_id=workout_id,
-                latitude=location.latitude,
-                longitude=location.longitude,
-                recorded_at=datetime.now()
-            )
-            db.add(db_route)
-            db.commit()
-            
-            # 查询所有路线点计算距离
-            routes = db.query(DBWorkoutRoute).filter(
-                DBWorkoutRoute.workout_id == workout_id
-            ).order_by(DBWorkoutRoute.recorded_at).all()
-            
-            route_points = [
-                Location(latitude=r.latitude, longitude=r.longitude)
-                for r in routes
-            ]
-            
-            # 计算当前距离
-            current_distance = self.calculate_distance(route_points)
-            
-            # 计算当前持续时间
-            duration = int((datetime.now() - workout.start_time).total_seconds())
-            
-            return {
-                "workout_id": workout_id,
-                "current_distance": current_distance,
-                "current_duration": duration,
-                "location": location
-            }
-        finally:
-            db.close()
+            db = SessionLocal()
+            try:
+                route_point = DBWorkoutRoute(
+                    workout_id=workout_id,
+                    latitude=location.latitude,
+                    longitude=location.longitude,
+                    timestamp=datetime.now(),
+                    sequence=len(workout.route)
+                )
+                db.add(route_point)
+                db.commit()
+            finally:
+                db.close()
+        
+        return True
     
     async def end_workout(
         self,
         user_id: str,
         workout_id: int,
-        user_weight: Optional[float] = None
+        weight: Optional[float] = None
     ) -> WorkoutSummary:
         """
         结束运动
@@ -224,128 +184,57 @@ class FitnessService:
         Args:
             user_id: 用户ID
             workout_id: 运动ID
-            user_weight: 用户体重
+            weight: 体重（用于计算卡路里）
             
         Returns:
             运动总结
         """
-        db = SessionLocal()
-        try:
-            # 查询运动记录
-            workout = db.query(DBWorkout).filter(
-                DBWorkout.id == workout_id,
-                DBWorkout.user_id == user_id,
-                DBWorkout.end_time.is_(None)
-            ).first()
-            
-            if not workout:
-                raise ValueError("No active workout found")
-            
-            # 更新结束时间
-            workout.end_time = datetime.now()
-            
-            # 查询所有路线点
-            routes = db.query(DBWorkoutRoute).filter(
-                DBWorkoutRoute.workout_id == workout_id
-            ).order_by(DBWorkoutRoute.recorded_at).all()
-            
-            route_points = [
-                Location(latitude=r.latitude, longitude=r.longitude)
-                for r in routes
-            ]
-            
-            # 计算总距离
-            total_distance = self.calculate_distance(route_points) if route_points else 0.0
-            workout.total_distance = total_distance
-            
-            # 计算总时长
-            total_duration = int(
-                (workout.end_time - workout.start_time).total_seconds()
-            )
-            workout.total_duration = total_duration
-            
-            # 计算卡路里
-            duration_minutes = total_duration // 60
-            workout_type = WorkoutType(workout.workout_type)
-            calories_burned = self.calculate_calories(
-                workout_type,
-                duration_minutes,
-                user_weight
-            )
-            workout.calories_burned = calories_burned
-            
-            # 计算平均速度
-            avg_speed = 0.0
-            if total_distance and total_duration > 0:
-                # 转换为公里/小时
-                avg_speed = (total_distance / 1000.0) / (total_duration / 3600.0)
-                avg_speed = round(avg_speed, 2)
-            workout.avg_speed = avg_speed
-            
-            db.commit()
-            
-            return WorkoutSummary(
-                id=workout.id,
-                total_distance=total_distance,
-                total_duration=total_duration,
-                calories_burned=calories_burned,
-                avg_speed=avg_speed,
-                route_points=route_points
-            )
-        finally:
-            db.close()
-    
-    async def get_workout_history(
-        self,
-        user_id: str,
-        limit: int = 20
-    ) -> List[Workout]:
-        """
-        获取运动历史
+        if user_id not in self.current_workouts:
+            raise ValueError("未找到当前运动记录")
         
-        Args:
-            user_id: 用户ID
-            limit: 限制数量
-            
-        Returns:
-            运动列表
-        """
+        workout = self.current_workouts[user_id]
+        end_time = datetime.now()
+        duration_seconds = int((end_time - workout.start_time).total_seconds())
+        duration_minutes = duration_seconds // 60
+        
+        calories = self.calculate_calories(
+            workout.workout_type,
+            duration_minutes,
+            weight
+        )
+        
+        workout.end_time = end_time
+        workout.duration = duration_seconds
+        workout.calories = calories
+        
         db = SessionLocal()
         try:
-            # 查询用户的运动记录
-            db_workouts = db.query(DBWorkout).filter(
-                DBWorkout.user_id == user_id
-            ).order_by(DBWorkout.created_at.desc()).limit(limit).all()
-            
-            workouts = []
-            for db_workout in db_workouts:
-                # 查询路线点
-                routes = db.query(DBWorkoutRoute).filter(
-                    DBWorkoutRoute.workout_id == db_workout.id
-                ).order_by(DBWorkoutRoute.recorded_at).all()
-                
-                route_points = [
-                    Location(latitude=r.latitude, longitude=r.longitude)
-                    for r in routes
-                ]
-                
-                workout = Workout(
-                    id=db_workout.id,
-                    user_id=db_workout.user_id,
-                    workout_type=WorkoutType(db_workout.workout_type),
-                    start_time=db_workout.start_time,
-                    end_time=db_workout.end_time,
-                    total_distance=db_workout.total_distance,
-                    total_duration=db_workout.total_duration,
-                    calories_burned=db_workout.calories_burned,
-                    route_points=route_points,
-                    created_at=db_workout.created_at
-                )
-                workouts.append(workout)
-            
-            return workouts
+            db_workout = db.query(DBWorkout).filter(DBWorkout.id == workout_id).first()
+            if db_workout:
+                db_workout.end_time = end_time
+                db_workout.total_duration = duration_seconds
+                db_workout.total_distance = workout.distance
+                db_workout.calories_burned = calories
+                if duration_seconds > 0:
+                    db_workout.avg_speed = (workout.distance / 1000) / (duration_seconds / 3600)
+                db.commit()
         finally:
             db.close()
+        
+        del self.current_workouts[user_id]
+        
+        return WorkoutSummary(
+            workout_id=workout_id,
+            user_id=user_id,
+            workout_type=workout.workout_type,
+            start_time=workout.start_time,
+            end_time=end_time,
+            duration=duration_seconds,
+            distance=round(workout.distance, 2),
+            calories=calories,
+            start_location=workout.start_location,
+            end_location=workout.route[-1] if workout.route else None
+        )
     
     async def get_fitness_stats(
         self,
@@ -360,55 +249,88 @@ class FitnessService:
             period: 统计周期
             
         Returns:
-            统计数据
+            运动统计数据
         """
         db = SessionLocal()
         try:
-            # 查询用户的运动记录
-            query = db.query(DBWorkout).filter(
-                DBWorkout.user_id == user_id,
-                DBWorkout.end_time.isnot(None)
-            )
+            now = datetime.now()
             
-            # 根据周期筛选
-            if period != FitnessStatsPeriod.ALL:
-                now = datetime.now()
-                if period == FitnessStatsPeriod.DAY:
-                    start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
-                elif period == FitnessStatsPeriod.WEEK:
-                    start_date = now - timedelta(days=now.weekday())
-                    start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                else:  # MONTH
-                    start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                query = query.filter(DBWorkout.created_at >= start_date)
+            if period == FitnessStatsPeriod.WEEK:
+                start_date = now - timedelta(weeks=1)
+            elif period == FitnessStatsPeriod.MONTH:
+                start_date = now - timedelta(days=30)
+            elif period == FitnessStatsPeriod.YEAR:
+                start_date = now - timedelta(days=365)
+            else:
+                start_date = None
             
-            period_workouts = query.all()
+            query = db.query(DBWorkout).filter(DBWorkout.user_id == user_id)
             
-            # 计算统计
-            total_distance = sum(w.total_distance or 0 for w in period_workouts)
-            total_duration = sum(w.total_duration or 0 for w in period_workouts)
-            total_calories = sum(w.calories_burned or 0 for w in period_workouts)
-            workout_count = len(period_workouts)
+            if start_date:
+                query = query.filter(DBWorkout.start_time >= start_date)
             
-            avg_distance = total_distance / workout_count if workout_count > 0 else 0
-            avg_duration = total_duration // workout_count if workout_count > 0 else 0
+            workouts = query.all()
+            
+            total_distance = sum(w.total_distance or 0 for w in workouts)
+            total_calories = sum(w.calories_burned or 0 for w in workouts)
+            total_duration = sum(w.total_duration or 0 for w in workouts)
+            count = len(workouts)
+            
+            avg_distance = round(total_distance / count, 2) if count > 0 else 0.0
+            avg_duration = round(total_duration / count) if count > 0 else 0
             
             return FitnessStats(
-                period=period,
                 total_distance=round(total_distance, 2),
-                total_duration=total_duration,
                 total_calories=round(total_calories, 2),
-                workout_count=workout_count,
-                avg_distance=round(avg_distance, 2),
-                avg_duration=avg_duration
+                total_duration=total_duration,
+                workout_count=count,
+                avg_distance=avg_distance,
+                avg_duration=avg_duration,
+                period=period
             )
         finally:
             db.close()
     
-    async def get_active_workout(
+    async def get_workout_history(
         self,
-        user_id: str
-    ) -> Optional[Workout]:
+        user_id: str,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        获取运动历史记录
+        
+        Args:
+            user_id: 用户ID
+            limit: 返回数量限制
+            
+        Returns:
+            运动历史记录列表
+        """
+        db = SessionLocal()
+        try:
+            workouts = db.query(DBWorkout)\
+                .filter(DBWorkout.user_id == user_id)\
+                .order_by(DBWorkout.start_time.desc())\
+                .limit(limit)\
+                .all()
+            
+            history = []
+            for w in workouts:
+                history.append({
+                    'id': w.id,
+                    'workout_type': w.workout_type,
+                    'start_time': w.start_time.isoformat(),
+                    'total_duration': w.total_duration or 0,
+                    'total_distance': round(w.total_distance or 0, 2),
+                    'calories_burned': round(w.calories_burned or 0, 2),
+                    'created_at': w.created_at.isoformat() if w.created_at else w.start_time.isoformat()
+                })
+            
+            return history
+        finally:
+            db.close()
+    
+    async def get_current_workout(self, user_id: str) -> Optional[Workout]:
         """
         获取当前进行中的运动
         
@@ -416,40 +338,6 @@ class FitnessService:
             user_id: 用户ID
             
         Returns:
-            当前运动或None
+            当前运动对象，如果没有则返回None
         """
-        db = SessionLocal()
-        try:
-            # 查询进行中的运动（end_time为空）
-            db_workout = db.query(DBWorkout).filter(
-                DBWorkout.user_id == user_id,
-                DBWorkout.end_time.is_(None)
-            ).first()
-            
-            if not db_workout:
-                return None
-            
-            # 查询路线点
-            routes = db.query(DBWorkoutRoute).filter(
-                DBWorkoutRoute.workout_id == db_workout.id
-            ).order_by(DBWorkoutRoute.recorded_at).all()
-            
-            route_points = [
-                Location(latitude=r.latitude, longitude=r.longitude)
-                for r in routes
-            ]
-            
-            return Workout(
-                id=db_workout.id,
-                user_id=db_workout.user_id,
-                workout_type=WorkoutType(db_workout.workout_type),
-                start_time=db_workout.start_time,
-                end_time=db_workout.end_time,
-                total_distance=db_workout.total_distance,
-                total_duration=db_workout.total_duration,
-                calories_burned=db_workout.calories_burned,
-                route_points=route_points,
-                created_at=db_workout.created_at
-            )
-        finally:
-            db.close()
+        return self.current_workouts.get(user_id)

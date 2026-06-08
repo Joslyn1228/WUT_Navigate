@@ -142,44 +142,50 @@
             }
         });
 
-        async function getCurrentLocation() {
-            if (!navigator.geolocation) {
-                useDefaultLocation();
-                return;
-            }
+        function getCurrentLocation() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    useDefaultLocation();
+                    resolve();
+                    return;
+                }
 
-            const optionsHighAccuracy = {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 5000
-            };
+                const optionsHighAccuracy = {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 5000
+                };
 
-            const optionsLowAccuracy = {
-                enableHighAccuracy: false,
-                timeout: 10000,
-                maximumAge: 300000
-            };
+                const optionsLowAccuracy = {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 300000
+                };
 
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    handleLocationSuccess(position);
-                },
-                (error) => {
-                    console.warn('高精度定位失败，尝试低精度定位:', error.message);
-                    navigator.geolocation.getCurrentPosition(
-                        async (position) => {
-                            handleLocationSuccess(position);
-                        },
-                        (secondError) => {
-                            console.error('定位失败:', secondError.message);
-                            showLocationError(secondError.code);
-                            useDefaultLocation();
-                        },
-                        optionsLowAccuracy
-                    );
-                },
-                optionsHighAccuracy
-            );
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        handleLocationSuccess(position);
+                        resolve();
+                    },
+                    (error) => {
+                        console.warn('高精度定位失败，尝试低精度定位:', error.message);
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                                handleLocationSuccess(position);
+                                resolve();
+                            },
+                            (secondError) => {
+                                console.error('定位失败:', secondError.message);
+                                showLocationError(secondError.code);
+                                useDefaultLocation();
+                                resolve();
+                            },
+                            optionsLowAccuracy
+                        );
+                    },
+                    optionsHighAccuracy
+                );
+            });
         }
 
         function handleLocationSuccess(position) {
@@ -768,110 +774,213 @@
         let workoutDuration = 0;
         let workoutCalories = 0;
 
-        function toggleWorkout() {
+        async function toggleWorkout() {
             const button = document.getElementById('workoutButton');
             
             if (!isWorkoutActive) {
-                startWorkout();
-                button.textContent = '结束运动';
-                document.getElementById('workoutStatus').textContent = '🏃 运动中...';
+                const success = await startWorkout();
+                if (success) {
+                    button.textContent = '结束运动';
+                    document.getElementById('workoutStatus').textContent = '🏃 运动中...';
+                } else {
+                    document.getElementById('workoutStatus').textContent = '❌ 运动开始失败';
+                    setTimeout(() => {
+                        document.getElementById('workoutStatus').textContent = '🏃 准备开始运动';
+                    }, 2000);
+                }
             } else {
-                endWorkout();
+                await endWorkout();
                 button.textContent = '开始运动';
                 document.getElementById('workoutStatus').textContent = '🏃 准备开始运动';
             }
         }
 
         async function startWorkout() {
+            console.log('=== startWorkout 开始执行 ===');
+            console.log('当前 currentLocation:', currentLocation);
+            
             isWorkoutActive = true;
             workoutDistance = 0;
             workoutDuration = 0;
             workoutCalories = 0;
             
+            // 直接设置默认位置，避免 null 问题
             if (!currentLocation) {
-                await getCurrentLocation();
+                console.log('设置默认位置');
+                currentLocation = { latitude: 30.5075, longitude: 114.3795 };
             }
             
+            // 尝试获取位置，但不等待太久
             try {
+                const locationPromise = getCurrentLocation();
+                // 给5秒超时
+                await Promise.race([
+                    locationPromise,
+                    new Promise(resolve => setTimeout(resolve, 5000))
+                ]);
+            } catch (e) {
+                console.warn('获取位置超时，继续使用默认位置');
+            }
+            
+            console.log('使用位置:', currentLocation);
+            
+            let startSuccess = false;
+            
+            try {
+                console.log('开始调用 API');
                 const response = await fetch(`/api/fitness/start?workout_type=walking&start_latitude=${currentLocation.latitude}&start_longitude=${currentLocation.longitude}`, {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${currentToken}` }
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
+                console.log('API 响应:', data);
+                
                 if (data.success) {
                     window.workoutId = data.data.workout_id;
+                    console.log('运动开始成功，ID:', window.workoutId);
+                    startSuccess = true;
+                } else {
+                    console.warn('运动开始失败:', data.message);
+                    startSuccess = false;
                 }
             } catch (error) {
                 console.error('开始运动失败:', error);
+                startSuccess = false;
             }
             
-            workoutInterval = setInterval(() => {
-                workoutDuration += 1;
-                workoutDistance += Math.random() * 2;
-                workoutCalories = Math.round(workoutDistance * 0.05);
-                
-                document.getElementById('workoutDistance').textContent = Math.round(workoutDistance);
-                document.getElementById('workoutDuration').textContent = workoutDuration;
-                document.getElementById('workoutCalories').textContent = workoutCalories;
-            }, 1000);
+            if (startSuccess) {
+                workoutInterval = setInterval(() => {
+                    workoutDuration += 1;
+                    workoutDistance += Math.random() * 2;
+                    workoutCalories = Math.round(workoutDistance * 0.05);
+                    
+                    document.getElementById('workoutDistance').textContent = Math.round(workoutDistance);
+                    document.getElementById('workoutDuration').textContent = workoutDuration;
+                    document.getElementById('workoutCalories').textContent = workoutCalories;
+                }, 1000);
+            } else {
+                isWorkoutActive = false;
+            }
+            
+            return startSuccess;
         }
 
         async function endWorkout() {
             isWorkoutActive = false;
             clearInterval(workoutInterval);
             
-            try {
-                await fetch(`/api/fitness/end?workout_id=${window.workoutId}`, {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${currentToken}` }
-                });
-            } catch (error) {
-                console.error('结束运动失败:', error);
+            if (!window.workoutId) {
+                console.warn('未找到有效的运动ID，跳过结束运动请求');
+            } else {
+                try {
+                    const response = await fetch(`/api/fitness/end?workout_id=${window.workoutId}`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${currentToken}` }
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        console.log('运动结束成功:', data.data);
+                    } else {
+                        console.warn('结束运动失败:', data.message);
+                    }
+                } catch (error) {
+                    console.error('结束运动失败:', error);
+                } finally {
+                    window.workoutId = null;
+                }
             }
             
             document.getElementById('workoutDistance').textContent = 0;
             document.getElementById('workoutDuration').textContent = 0;
             document.getElementById('workoutCalories').textContent = 0;
             
-            loadFitnessStats();
+            await loadFitnessStats();
+            console.log('运动统计已刷新');
         }
 
         async function loadFitnessStats() {
+            console.log('开始加载运动统计...');
+            
             try {
-                const response = await fetch('/api/fitness/statistics?period=week', {
-                    headers: { Authorization: `Bearer ${currentToken}` }
+                const response = await fetch('/api/fitness/statistics?period=week&_=' + Date.now(), {
+                    headers: { Authorization: `Bearer ${currentToken}` },
+                    cache: 'no-cache'
                 });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP error ' + response.status);
+                }
+                
                 const data = await response.json();
-                if (data.success) {
+                console.log('周统计数据:', data);
+                
+                if (data.success && data.data) {
                     const stats = data.data;
-                    document.getElementById('statDistance').textContent = Math.round(stats.total_distance);
-                    document.getElementById('statCalories').textContent = Math.round(stats.total_calories);
-                    document.getElementById('statWorkouts').textContent = stats.workout_count;
+                    document.getElementById('statDistance').textContent = Math.round(stats.total_distance || 0);
+                    document.getElementById('statCalories').textContent = Math.round(stats.total_calories || 0);
+                    document.getElementById('statWorkouts').textContent = stats.workout_count || 0;
+                } else {
+                    console.warn('周统计数据格式不正确:', data);
                 }
             } catch (error) {
                 console.error('加载运动统计失败:', error);
             }
             
             try {
-                const response = await fetch('/api/fitness/statistics?period=all', {
-                    headers: { Authorization: `Bearer ${currentToken}` }
+                const response = await fetch('/api/fitness/statistics?period=all&_=' + Date.now(), {
+                    headers: { Authorization: `Bearer ${currentToken}` },
+                    cache: 'no-cache'
                 });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP error ' + response.status);
+                }
+                
                 const data = await response.json();
-                if (data.success) {
+                console.log('累计统计数据:', data);
+                
+                if (data.success && data.data) {
                     const stats = data.data;
-                    document.getElementById('statTotal').textContent = Math.round(stats.total_distance);
+                    document.getElementById('statTotal').textContent = Math.round(stats.total_distance || 0);
+                } else {
+                    console.warn('累计统计数据格式不正确:', data);
                 }
             } catch (error) {
                 console.error('加载累计统计失败:', error);
             }
             
             try {
-                const response = await fetch('/api/fitness/history', {
-                    headers: { Authorization: `Bearer ${currentToken}` }
+                const response = await fetch('/api/fitness/history?_=' + Date.now(), {
+                    headers: { Authorization: `Bearer ${currentToken}` },
+                    cache: 'no-cache'
                 });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP error ' + response.status);
+                }
+                
                 const data = await response.json();
-                if (data.success && data.data.length > 0) {
-                    renderWorkoutHistory(data.data);
+                console.log('运动历史数据:', data);
+                
+                if (data.success && data.data) {
+                    if (data.data.length > 0) {
+                        renderWorkoutHistory(data.data);
+                    } else {
+                        // 显示暂无运动记录
+                        const container = document.getElementById('workoutHistory');
+                        container.innerHTML = `
+                            <div style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">🏃</div>
+                                <div>暂无运动记录</div>
+                            </div>
+                        `;
+                    }
                 }
             } catch (error) {
                 console.error('加载运动历史失败:', error);

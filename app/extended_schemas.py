@@ -199,7 +199,7 @@ class WorkoutSummary(BaseModel):
 class Workout(WorkoutBase):
     """运动模型"""
     id: int
-    user_id: str  # UUID格式
+    user_id: int
     end_time: Optional[datetime] = None
     total_distance: Optional[float] = None
     total_duration: Optional[int] = None
@@ -216,6 +216,7 @@ class FitnessStatsPeriod(str, Enum):
     DAY = "day"
     WEEK = "week"
     MONTH = "month"
+    YEAR = "year"
     ALL = "all"
 
 

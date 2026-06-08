@@ -5,6 +5,7 @@ from .place_database import PlaceDatabase
 from .llm_service import LLMService
 import math
 
+
 class WUTourGuideAgent:
     """武汉理工大学智能导游Agent"""
     

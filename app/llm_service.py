@@ -13,12 +13,7 @@ class LLMService:
     def __init__(self):
         self.api_key = os.getenv("DEEPSEEK_API_KEY")
         self.api_base = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
-        self.model = ChatOpenAI(
-            model="deepseek-chat",
-            api_key=self.api_key,
-            base_url=self.api_base,
-            temperature=0.7
-        )
+        self._model = None
         
         self.system_prompt = """
 你是武汉理工大学智能导游助手，专门为师生和访客提供校园导航、场所介绍等服务。
@@ -44,6 +39,17 @@ class LLMService:
 - 避免使用专业术语过多
         """.strip()
     
+    @property
+    def model(self):
+        if self._model is None:
+            self._model = ChatOpenAI(
+                model="deepseek-chat",
+                api_key=self.api_key,
+                base_url=self.api_base,
+                temperature=0.7
+            )
+        return self._model
+    
     async def analyze_query(self, query: str) -> dict:
         """分析用户查询意图"""
         prompt = ChatPromptTemplate.from_messages([
@@ -57,9 +63,7 @@ class LLMService:
         try:
             import json
             result = json.loads(response.content)
-            # 如果意图是navigation但没有place，尝试从query中提取
             if result.get("intent") == "navigation" and not result.get("place"):
-                # 简单的关键词匹配提取目的地
                 places = ["南湖图书馆", "西院图书馆", "鉴湖教学楼", "南湖体育馆", "马房山校区", "南湖校区", "余家头校区", "行政楼", "大学生活动中心", "学生食堂"]
                 for place in places:
                     if place in query:
@@ -67,9 +71,7 @@ class LLMService:
                         break
             return result
         except:
-            # 如果解析失败，尝试简单规则判断
             if any(keyword in query for keyword in ["去", "怎么走", "导航", "路线"]):
-                # 尝试提取目的地
                 places = ["南湖图书馆", "西院图书馆", "鉴湖教学楼", "南湖体育馆", "马房山校区", "南湖校区", "余家头校区", "行政楼", "大学生活动中心", "学生食堂"]
                 found_place = None
                 for place in places:
