@@ -176,7 +176,10 @@ class FitnessService:
         self,
         user_id: str,
         workout_id: int,
-        weight: Optional[float] = None
+        weight: Optional[float] = None,
+        distance: Optional[float] = None,
+        duration: Optional[int] = None,
+        calories: Optional[float] = None
     ) -> WorkoutSummary:
         """
         结束运动
@@ -185,55 +188,76 @@ class FitnessService:
             user_id: 用户ID
             workout_id: 运动ID
             weight: 体重（用于计算卡路里）
+            distance: 前端发送的运动距离（米）
+            duration: 前端发送的运动时长（秒）
+            calories: 前端发送的卡路里消耗
             
         Returns:
             运动总结
         """
-        if user_id not in self.current_workouts:
-            raise ValueError("未找到当前运动记录")
-        
-        workout = self.current_workouts[user_id]
         end_time = datetime.now()
-        duration_seconds = int((end_time - workout.start_time).total_seconds())
-        duration_minutes = duration_seconds // 60
         
-        calories = self.calculate_calories(
-            workout.workout_type,
-            duration_minutes,
-            weight
-        )
+        # 使用前端发送的数据，如果没有则从内存中获取或计算
+        if user_id in self.current_workouts:
+            workout = self.current_workouts[user_id]
+            start_time = workout.start_time
+            workout_type = workout.workout_type
+            
+            # 如果前端没有发送数据，从后端计算
+            if duration is None:
+                duration = int((end_time - workout.start_time).total_seconds())
+            if distance is None:
+                distance = getattr(workout, 'distance', 0.0)
+            if calories is None:
+                calories = self.calculate_calories(workout.workout_type, duration // 60, weight)
+            
+            del self.current_workouts[user_id]
+        else:
+            # 如果内存中没有记录，从数据库获取
+            db = SessionLocal()
+            try:
+                db_workout = db.query(DBWorkout).filter(DBWorkout.id == workout_id).first()
+                if db_workout:
+                    start_time = db_workout.start_time
+                    workout_type = db_workout.workout_type
+                else:
+                    start_time = end_time
+                    workout_type = WorkoutType.WALKING
+            finally:
+                db.close()
+            
+            # 如果没有任何数据，使用默认值
+            if duration is None:
+                duration = 0
+            if distance is None:
+                distance = 0.0
+            if calories is None:
+                calories = 0.0
         
-        workout.end_time = end_time
-        workout.duration = duration_seconds
-        workout.calories = calories
-        
+        # 更新数据库
         db = SessionLocal()
         try:
             db_workout = db.query(DBWorkout).filter(DBWorkout.id == workout_id).first()
             if db_workout:
                 db_workout.end_time = end_time
-                db_workout.total_duration = duration_seconds
-                db_workout.total_distance = workout.distance
+                db_workout.total_duration = duration
+                db_workout.total_distance = distance
                 db_workout.calories_burned = calories
-                if duration_seconds > 0:
-                    db_workout.avg_speed = (workout.distance / 1000) / (duration_seconds / 3600)
+                if duration > 0:
+                    db_workout.avg_speed = (distance / 1000) / (duration / 3600)
                 db.commit()
         finally:
             db.close()
         
-        del self.current_workouts[user_id]
-        
         return WorkoutSummary(
             workout_id=workout_id,
             user_id=user_id,
-            workout_type=workout.workout_type,
-            start_time=workout.start_time,
+            workout_type=workout_type,
+            start_time=start_time,
             end_time=end_time,
-            duration=duration_seconds,
-            distance=round(workout.distance, 2),
-            calories=calories,
-            start_location=workout.start_location,
-            end_location=workout.route[-1] if workout.route else None
+            duration=duration,
+            distance=round(distance, 2),
+            calories=calories
         )
     
     async def get_fitness_stats(

@@ -188,24 +188,35 @@ class WorkoutUpdate(BaseModel):
 
 class WorkoutSummary(BaseModel):
     """运动总结"""
-    id: int
-    total_distance: float
-    total_duration: int
-    calories_burned: float
-    avg_speed: Optional[float] = None
-    route_points: Optional[List[Location]] = None
+    workout_id: int
+    user_id: str
+    workout_type: WorkoutType
+    start_time: datetime
+    end_time: datetime
+    duration: int
+    distance: float
+    calories: float
+    start_location: Optional[Location] = None
+    end_location: Optional[Location] = None
 
 
 class Workout(WorkoutBase):
     """运动模型"""
-    id: int
-    user_id: int
+    id: Optional[int] = None
+    workout_id: Optional[int] = None
+    user_id: str
+    start_location: Optional[Location] = None
     end_time: Optional[datetime] = None
+    end_location: Optional[Location] = None
+    duration: int = 0
+    distance: float = 0.0
+    calories: float = 0.0
+    route: List[Dict[str, float]] = []
     total_distance: Optional[float] = None
     total_duration: Optional[int] = None
     calories_burned: Optional[float] = None
     route_points: Optional[List[Location]] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True

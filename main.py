@@ -408,6 +408,9 @@ async def update_workout(
 @app.post("/api/fitness/end", response_model=ApiResponse)
 async def end_workout(
     workout_id: int,
+    distance: Optional[float] = None,
+    duration: Optional[int] = None,
+    calories: Optional[float] = None,
     Authorization: Optional[str] = Header(None)
 ):
     """结束运动"""
@@ -415,7 +418,7 @@ async def end_workout(
         user_id = await get_current_user(Authorization or "")
         user = auth_service.get_user_by_id(user_id)
         weight = user.weight if user and hasattr(user, 'weight') and user.weight else None
-        summary = await fitness_service.end_workout(user_id, workout_id, weight)
+        summary = await fitness_service.end_workout(user_id, workout_id, weight, distance, duration, calories)
         return ApiResponse(
             success=True,
             message="运动已结束",
@@ -460,11 +463,10 @@ async def get_workout_history(
     try:
         user_id = await get_current_user(Authorization or "")
         history = await fitness_service.get_workout_history(user_id, limit)
-        history_list = [h.dict() for h in history]
         return ApiResponse(
             success=True,
             message="获取成功",
-            data=history_list
+            data=history
         )
     except HTTPException as e:
         return ApiResponse(success=False, message=e.detail)

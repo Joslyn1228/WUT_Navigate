@@ -798,8 +798,9 @@
         async function startWorkout() {
             console.log('=== startWorkout 开始执行 ===');
             console.log('当前 currentLocation:', currentLocation);
+            console.log('当前 isWorkoutActive:', isWorkoutActive);
             
-            isWorkoutActive = true;
+            // 重置运动数据
             workoutDistance = 0;
             workoutDuration = 0;
             workoutCalories = 0;
@@ -813,7 +814,6 @@
             // 尝试获取位置，但不等待太久
             try {
                 const locationPromise = getCurrentLocation();
-                // 给5秒超时
                 await Promise.race([
                     locationPromise,
                     new Promise(resolve => setTimeout(resolve, 5000))
@@ -840,9 +840,23 @@
                 const data = await response.json();
                 console.log('API 响应:', data);
                 
-                if (data.success) {
+                if (data.success && data.data && data.data.workout_id) {
                     window.workoutId = data.data.workout_id;
                     console.log('运动开始成功，ID:', window.workoutId);
+                    
+                    // 只有在API成功后才设置状态
+                    isWorkoutActive = true;
+                    
+                    workoutInterval = setInterval(() => {
+                        workoutDuration += 1;
+                        workoutDistance += Math.random() * 2;
+                        workoutCalories = Math.round(workoutDistance * 0.05);
+                        
+                        document.getElementById('workoutDistance').textContent = Math.round(workoutDistance);
+                        document.getElementById('workoutDuration').textContent = workoutDuration;
+                        document.getElementById('workoutCalories').textContent = workoutCalories;
+                    }, 1000);
+                    
                     startSuccess = true;
                 } else {
                     console.warn('运动开始失败:', data.message);
@@ -853,24 +867,15 @@
                 startSuccess = false;
             }
             
-            if (startSuccess) {
-                workoutInterval = setInterval(() => {
-                    workoutDuration += 1;
-                    workoutDistance += Math.random() * 2;
-                    workoutCalories = Math.round(workoutDistance * 0.05);
-                    
-                    document.getElementById('workoutDistance').textContent = Math.round(workoutDistance);
-                    document.getElementById('workoutDuration').textContent = workoutDuration;
-                    document.getElementById('workoutCalories').textContent = workoutCalories;
-                }, 1000);
-            } else {
-                isWorkoutActive = false;
-            }
-            
             return startSuccess;
         }
 
         async function endWorkout() {
+            console.log('=== endWorkout 开始执行 ===');
+            console.log('当前 window.workoutId:', window.workoutId);
+            console.log('当前 isWorkoutActive:', isWorkoutActive);
+            
+            // 停止计时器和状态
             isWorkoutActive = false;
             clearInterval(workoutInterval);
             
@@ -878,7 +883,10 @@
                 console.warn('未找到有效的运动ID，跳过结束运动请求');
             } else {
                 try {
-                    const response = await fetch(`/api/fitness/end?workout_id=${window.workoutId}`, {
+                    console.log('发送运动数据到后端...');
+                    console.log('运动数据 - 距离:', workoutDistance, '时间:', workoutDuration, '卡路里:', workoutCalories);
+                    
+                    const response = await fetch(`/api/fitness/end?workout_id=${window.workoutId}&distance=${workoutDistance}&duration=${workoutDuration}&calories=${workoutCalories}`, {
                         method: 'POST',
                         headers: { Authorization: `Bearer ${currentToken}` }
                     });
@@ -896,10 +904,12 @@
                 }
             }
             
+            // 重置UI显示
             document.getElementById('workoutDistance').textContent = 0;
             document.getElementById('workoutDuration').textContent = 0;
             document.getElementById('workoutCalories').textContent = 0;
             
+            // 刷新统计数据
             await loadFitnessStats();
             console.log('运动统计已刷新');
         }
@@ -1793,14 +1803,15 @@
                 
                 if (checkinData.success && checkinData.data) {
                     document.getElementById('profileCheckins').textContent = checkinData.data.total_checkins || 0;
-                    
-                    let workoutCount = 0;
-                    if (checkinData.data.activities) {
-                        for (const activity of checkinData.data.activities) {
-                            workoutCount += activity.count || 0;
-                        }
-                    }
-                    document.getElementById('profileWorkouts').textContent = workoutCount;
+                }
+                
+                const fitnessResponse = await fetch('/api/fitness/statistics?period=all', {
+                    headers: { Authorization: `Bearer ${currentToken}` }
+                });
+                const fitnessData = await fitnessResponse.json();
+                
+                if (fitnessData.success && fitnessData.data) {
+                    document.getElementById('profileWorkouts').textContent = fitnessData.data.workout_count || 0;
                 }
                 
                 const postsResponse = await fetch('/api/community/user-posts?page=1&page_size=1', {
