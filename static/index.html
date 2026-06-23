@@ -5,38 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>武汉理工大学智能导游</title>
     <script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.15&key=e5342acb04e2c397533ff69ed0dc445f"></script>
-    <!-- 加载外部样式 -->
     <link rel="stylesheet" href="/static/css/style.css">
-
+    <link rel="stylesheet" href="/static/css/home.css?v=3">
+    <link rel="stylesheet" href="/static/css/app-montoni.css?v=8">
+    <link rel="stylesheet" href="/static/css/lando-effects.css?v=2">
 
 </head>
-<body>
-    <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
-    
+<body class="page-home montoni-theme">
+    <header class="montoni-header" id="montoniHeader">
+        <div class="montoni-header-inner">
+            <a class="montoni-logo" onclick="switchTab('home')">武理<span>导航</span></a>
+            <nav class="montoni-nav" id="montoniNav">
+                <a data-nav="home" class="active" onclick="switchTab('home')">首页</a>
+                <a data-nav="guide" onclick="switchTab('guide')">讲解</a>
+                <a data-nav="checkin" onclick="switchTab('checkin')">打卡</a>
+                <a data-nav="community" onclick="switchTab('community')">社区</a>
+                <a data-nav="fitness" onclick="switchTab('fitness')">运动</a>
+                <a data-nav="profile" class="montoni-nav-cta" id="navProfileBtn" onclick="switchTab('profile')">登录 / 注册</a>
+            </nav>
+            <button class="montoni-menu-toggle" id="montoniMenuToggle" aria-label="菜单">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </header>
+
     <div class="container-wrapper">
-        <div class="sidebar" id="sidebar">
+        <div class="sidebar" id="sidebar" aria-hidden="true">
             <div class="sidebar-header">
                 <h1>🗺️ 武理导航</h1>
                 <div class="subtitle">武汉理工大学智能导游</div>
             </div>
             <div class="sidebar-nav">
-                <div class="nav-item active" onclick="switchTab('profile')">
+                <div class="nav-item active" data-tab="home" onclick="switchTab('home')">
+                    <span class="nav-item-icon">🏠</span>
+                    <span class="nav-item-text">首页</span>
+                </div>
+                <div class="nav-item" data-tab="profile" onclick="switchTab('profile')">
                     <span class="nav-item-icon">👤</span>
                     <span class="nav-item-text">我的</span>
                 </div>
-                <div class="nav-item" onclick="switchTab('checkin')">
+                <div class="nav-item" data-tab="checkin" onclick="switchTab('checkin')">
                     <span class="nav-item-icon">🎯</span>
                     <span class="nav-item-text">打卡</span>
                 </div>
-                <div class="nav-item" onclick="switchTab('community')">
+                <div class="nav-item" data-tab="community" onclick="switchTab('community')">
                     <span class="nav-item-icon">💬</span>
                     <span class="nav-item-text">社区</span>
                 </div>
-                <div class="nav-item" onclick="switchTab('fitness')">
+                <div class="nav-item" data-tab="fitness" onclick="switchTab('fitness')">
                     <span class="nav-item-icon">🏃</span>
                     <span class="nav-item-text">运动</span>
                 </div>
-                <div class="nav-item" onclick="switchTab('guide')">
+                <div class="nav-item" data-tab="guide" onclick="switchTab('guide')">
                     <span class="nav-item-icon">🏛️</span>
                     <span class="nav-item-text">讲解</span>
                 </div>
@@ -45,8 +65,217 @@
 
         <div class="main-content" id="mainContent">
             <div class="content-container">
+                <!-- Montoni 风格首页 -->
+                <div id="home" class="tab-content active">
+                    <section class="hero-carousel" id="heroCarousel">
+                        <video class="hero-video-bg" id="heroVideoBg" autoplay muted loop playsinline preload="auto">
+                            <source src="/static/video/Vedio.mp4" type="video/mp4">
+                        </video>
+                        <div class="hero-video-overlay"></div>
+                        <div class="hero-slide active" data-index="0">
+                            <div class="hero-slide-content">
+                                <p class="hero-eyebrow">武汉理工大学 · 智能校园导航</p>
+                                <h1 class="hero-title">探索校园的<br>每一种可能</h1>
+                                <p class="hero-subtitle">基于 AI 的智能导游系统，为您提供精准的校内路径规划、实时景点讲解与个性化校园服务。</p>
+                                <div class="hero-actions">
+                                    <button class="hero-btn hero-btn-primary" onclick="switchTab('guide')">开始探索</button>
+                                    <button class="hero-btn hero-btn-outline" onclick="toggleChatPanel()">智能助手</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hero-slide" data-index="1">
+                            <div class="hero-slide-content">
+                                <p class="hero-eyebrow">实时讲解 · 走到哪讲到哪</p>
+                                <h1 class="hero-title">50 米内<br>自动语音讲解</h1>
+                                <p class="hero-subtitle">当您走近校内标志性建筑，系统自动识别并推送文字介绍与语音播放，让每一次漫步都充满发现。</p>
+                                <div class="hero-actions">
+                                    <button class="hero-btn hero-btn-primary" onclick="switchTab('guide')">了解更多</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hero-slide" data-index="2">
+                            <div class="hero-slide-content">
+                                <p class="hero-eyebrow">打卡 · 运动 · 社区</p>
+                                <h1 class="hero-title">记录你的<br>校园生活</h1>
+                                <p class="hero-subtitle">校园打卡成就、运动健康追踪、社区动态分享——一站式智慧校园生活平台。</p>
+                                <div class="hero-actions">
+                                    <button class="hero-btn hero-btn-primary" onclick="switchTab('checkin')">立即打卡</button>
+                                    <button class="hero-btn hero-btn-outline" onclick="switchTab('community')">进入社区</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hero-indicators" id="heroIndicators">
+                            <button class="hero-indicator active" data-slide="0" aria-label="第1张"></button>
+                            <button class="hero-indicator" data-slide="1" aria-label="第2张"></button>
+                            <button class="hero-indicator" data-slide="2" aria-label="第3张"></button>
+                        </div>
+                        <div class="hero-scroll-hint">Scroll</div>
+                    </section>
+
+                    <section class="home-section">
+                        <div class="home-intro-grid">
+                            <div>
+                                <p class="home-section-label">关于武理导航</p>
+                                <h2 class="home-section-title">为明天的校园生活，构建今天的智慧导航</h2>
+                                <p class="home-section-desc">武理导航是专为武汉理工大学师生打造的智能导游 Agent，融合 LangChain 大模型与高德地图 API，提供精准校内导航、AI 对话问答、实时景点讲解等全方位服务。</p>
+                            </div>
+                            <div class="home-intro-visual" style="background-image: url('https://images.unsplash.com/photo-1607237138185-eedd9c632b0f?w=800&q=80');"></div>
+                        </div>
+                    </section>
+
+                    <section class="home-features">
+                        <div class="home-features-inner">
+                            <p class="home-section-label">核心功能</p>
+                            <h2 class="home-section-title">一站式智慧校园体验</h2>
+                            <div class="feature-cards">
+                                <div class="feature-card" onclick="switchTab('guide')">
+                                    <div class="feature-card-bg" style="background-image: url('https://images.unsplash.com/photo-1498243691581-b145c3f44a4a?w=600&q=80');"></div>
+                                    <div class="feature-card-overlay">
+                                        <span class="feature-card-tag">Guide</span>
+                                        <h3 class="feature-card-title">智能讲解</h3>
+                                        <p class="feature-card-desc">校内景点分类浏览，Proximity 自动触发语音介绍，500 米范围校园地图。</p>
+                                        <span class="feature-card-link">探索景点</span>
+                                    </div>
+                                </div>
+                                <div class="feature-card" onclick="switchTab('checkin')">
+                                    <div class="feature-card-bg" style="background-image: url('https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&q=80');"></div>
+                                    <div class="feature-card-overlay">
+                                        <span class="feature-card-tag">Check-in</span>
+                                        <h3 class="feature-card-title">校园打卡</h3>
+                                        <p class="feature-card-desc">位置打卡、活动参与、成就解锁，记录你在武理的每一个精彩瞬间。</p>
+                                        <span class="feature-card-link">开始打卡</span>
+                                    </div>
+                                </div>
+                                <div class="feature-card" onclick="switchTab('fitness')">
+                                    <div class="feature-card-bg" style="background-image: url('https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&q=80');"></div>
+                                    <div class="feature-card-overlay">
+                                        <span class="feature-card-tag">Fitness</span>
+                                        <h3 class="feature-card-title">运动健康</h3>
+                                        <p class="feature-card-desc">实时追踪运动距离、时长与卡路里，每周统计助你保持活力。</p>
+                                        <span class="feature-card-link">开始运动</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="home-stats">
+                        <div class="home-stats-grid">
+                            <div class="stat-block">
+                                <div class="stat-block-value">50<span>+</span></div>
+                                <div class="stat-block-label">校内景点与设施覆盖</div>
+                            </div>
+                            <div class="stat-block">
+                                <div class="stat-block-value">50<span>m</span></div>
+                                <div class="stat-block-label">Proximity 自动讲解触发距离</div>
+                            </div>
+                            <div class="stat-block">
+                                <div class="stat-block-value">AI</div>
+                                <div class="stat-block-label">LangChain + DeepSeek 智能对话</div>
+                            </div>
+                            <div class="stat-block">
+                                <div class="stat-block-value">24<span>/7</span></div>
+                                <div class="stat-block-label">全天候校园导航服务</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="home-values">
+                        <div style="max-width: 1400px; margin: 0 auto;">
+                            <p class="home-section-label">我们的优势</p>
+                            <h2 class="home-section-title">以技术驱动，让校园探索更简单</h2>
+                            <div class="home-values-grid">
+                                <div class="value-item">
+                                    <div class="value-number">01</div>
+                                    <div class="value-content">
+                                        <h4>精准校内导航</h4>
+                                        <p>集成高德地图 API，仅支持武汉理工大学校内地点，确保路径规划精准可靠。</p>
+                                    </div>
+                                </div>
+                                <div class="value-item">
+                                    <div class="value-number">02</div>
+                                    <div class="value-content">
+                                        <h4>AI 智能对话</h4>
+                                        <p>基于 LangChain 框架，自然语言理解您的需求，一键规划最优路线。</p>
+                                    </div>
+                                </div>
+                                <div class="value-item">
+                                    <div class="value-number">03</div>
+                                    <div class="value-content">
+                                        <h4>实时位置感知</h4>
+                                        <p>GPS 定位 + Proximity 检测，走近景点自动推送介绍，走到哪讲到哪。</p>
+                                    </div>
+                                </div>
+                                <div class="value-item">
+                                    <div class="value-number">04</div>
+                                    <div class="value-content">
+                                        <h4>校园社交生态</h4>
+                                        <p>打卡成就、运动记录、社区动态，连接武理师生的数字化校园生活。</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="home-cta">
+                        <div class="home-cta-bg" style="background-image: url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1920&q=80');"></div>
+                        <div class="home-cta-overlay"></div>
+                        <div class="home-cta-content">
+                            <p class="home-section-label" style="color: rgba(255,255,255,0.5);">立即开始</p>
+                            <h2 class="home-section-title">开启您的智慧校园之旅</h2>
+                            <p class="home-section-desc">注册账号，解锁打卡、运动、社区等全部功能，让 AI 助手陪伴您的每一次校园探索。</p>
+                            <div class="home-cta-actions">
+                                <button class="hero-btn hero-btn-primary" onclick="switchTab('profile')">注册 / 登录</button>
+                                <button class="hero-btn hero-btn-outline" onclick="toggleChatPanel()">试用智能助手</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <footer class="montoni-footer">
+                        <div class="montoni-footer-inner">
+                            <div class="footer-brand">
+                                <a class="montoni-logo" onclick="switchTab('home')">武理<span>导航</span></a>
+                                <p>武汉理工大学智能导游 Agent — 基于 LangChain 与高德地图，为师生提供精准、智能的校园导航与生活服务。</p>
+                            </div>
+                            <div class="footer-links">
+                                <h5>功能</h5>
+                                <ul>
+                                    <li><button onclick="switchTab('guide')">智能讲解</button></li>
+                                    <li><button onclick="switchTab('checkin')">校园打卡</button></li>
+                                    <li><button onclick="switchTab('fitness')">运动健康</button></li>
+                                    <li><button onclick="switchTab('community')">社区动态</button></li>
+                                </ul>
+                            </div>
+                            <div class="footer-links">
+                                <h5>账户</h5>
+                                <ul>
+                                    <li><button onclick="switchTab('profile')">登录</button></li>
+                                    <li><button onclick="switchTab('profile'); showRegister()">注册</button></li>
+                                    <li><button onclick="toggleChatPanel()">智能助手</button></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="footer-bottom">
+                            <span>© 2026 武汉理工大学智能导游</span>
+                            <span>Powered by LangChain · DeepSeek · 高德地图</span>
+                        </div>
+                    </footer>
+                </div>
+
                 <!-- 实时讲解页面 -->
-                <div id="guide" class="tab-content">
+                <div id="guide" class="tab-content guide-tab">
+                    <div class="guide-page-bg"></div>
+                    <div class="guide-page-overlay"></div>
+                    <div class="guide-page-inner">
+                    <section class="app-page-banner guide-banner">
+                        <div class="app-page-banner-overlay"></div>
+                        <div class="app-page-banner-content">
+                            <p class="home-section-label">Guide</p>
+                            <h1 class="app-page-title">智能讲解</h1>
+                            <p class="app-page-subtitle">走近校内景点，自动触发语音介绍，探索武理每一处精彩。</p>
+                        </div>
+                    </section>
+                    <div class="app-page-body guide-page-body">
                     <div class="location-indicator" id="guideLocation">
                         <span>📍</span>
                         <span>获取位置中...</span>
@@ -107,10 +336,25 @@
                             </div>
                         </div>
                     </div>
+                    <footer class="app-page-footer">
+                        <span>© 2026 武汉理工大学智能导游</span>
+                        <span>智能讲解 · 实时定位</span>
+                    </footer>
+                    </div>
+                    </div>
                 </div>
 
                 <!-- 运动健康页面 -->
                 <div id="fitness" class="tab-content">
+                    <section class="app-page-banner" style="background-image: url('https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1920&q=80');">
+                        <div class="app-page-banner-overlay"></div>
+                        <div class="app-page-banner-content">
+                            <p class="home-section-label">Fitness</p>
+                            <h1 class="app-page-title">运动健康</h1>
+                            <p class="app-page-subtitle">记录每一次奔跑与行走，用数据见证你的校园活力。</p>
+                        </div>
+                    </section>
+                    <div class="app-page-body">
                     <div class="workout-card" id="workoutCard">
                         <div class="workout-status" id="workoutStatus">🏃 准备开始运动</div>
                         <div class="workout-stats">
@@ -164,10 +408,24 @@
                             <p>暂无运动记录</p>
                         </div>
                     </div>
+                    <footer class="app-page-footer">
+                        <span>© 2026 武汉理工大学智能导游</span>
+                        <span>运动追踪 · 健康统计</span>
+                    </footer>
+                    </div>
                 </div>
 
                 <!-- 打卡页面 -->
                 <div id="checkin" class="tab-content">
+                    <section class="app-page-banner" style="background-image: url('https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1920&q=80');">
+                        <div class="app-page-banner-overlay"></div>
+                        <div class="app-page-banner-content">
+                            <p class="home-section-label">Check-in</p>
+                            <h1 class="app-page-title">校园打卡</h1>
+                            <p class="app-page-subtitle">参与打卡活动，解锁成就徽章，记录你在武理的每一天。</p>
+                        </div>
+                    </section>
+                    <div class="app-page-body">
                     <div class="location-indicator" id="checkinLocation">
                         <span>📍</span>
                         <span>获取位置中...</span>
@@ -190,10 +448,15 @@
                         <span>🎯</span>
                         <span>打卡活动</span>
                     </div>
-                    <div class="activities-grid" id="activitiesGrid">
+                    <div class="hall-showcase">
+                        <div class="hall-showcase-title">打卡活动</div>
+                        <div class="hall-showcase-sub">Check-in Activities · 悬停翻面查看详情</div>
+                        <div class="activities-grid hall-grid" id="activitiesGrid">
+                        </div>
                     </div>
 
-                    <div class="achievements-header">
+                    <div class="hall-showcase hall-showcase-achievements">
+                        <div class="achievements-header">
                         <div class="achievements-stats">
                             <div class="achievements-stat">
                                 <div class="achievements-stat-value" id="achievementsUnlocked">0</div>
@@ -214,9 +477,11 @@
                             <button class="filter-btn" onclick="filterAchievements('locked')">未解锁</button>
                             <button class="filter-btn" onclick="filterAchievements('hidden')">隐藏</button>
                         </div>
-                    </div>
-
-                    <div class="achievements-grid" id="achievementsGrid">
+                        </div>
+                        <div class="hall-showcase-title">成就殿堂</div>
+                        <div class="hall-showcase-sub">Hall of Fame · 悬停翻面查看进度</div>
+                        <div class="achievements-grid hall-grid" id="achievementsGrid">
+                        </div>
                     </div>
 
                     <div class="section-title">
@@ -244,10 +509,24 @@
                             <p>暂无打卡记录</p>
                         </div>
                     </div>
+                    <footer class="app-page-footer">
+                        <span>© 2026 武汉理工大学智能导游</span>
+                        <span>打卡成就 · 活动参与</span>
+                    </footer>
+                    </div>
                 </div>
 
                 <!-- 社区页面 -->
                 <div id="community" class="tab-content">
+                    <section class="app-page-banner" style="background-image: url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1920&q=80');">
+                        <div class="app-page-banner-overlay"></div>
+                        <div class="app-page-banner-content">
+                            <p class="home-section-label">Community</p>
+                            <h1 class="app-page-title">校园社区</h1>
+                            <p class="app-page-subtitle">分享校园生活，发现身边的故事，连接武理师生。</p>
+                        </div>
+                    </section>
+                    <div class="app-page-body">
                     <div class="card">
                         <div class="post-upload-section">
                             <textarea class="input-field" id="postContent" rows="4" placeholder="分享你的校园生活..."></textarea>
@@ -280,23 +559,41 @@
                             <div class="loading-spinner"></div>
                         </div>
                     </div>
+                    <footer class="app-page-footer">
+                        <span>© 2026 武汉理工大学智能导游</span>
+                        <span>校园动态 · 社交分享</span>
+                    </footer>
+                    </div>
                 </div>
                 
                 <!-- 图片预览弹窗 -->
                 <div class="image-preview-overlay" id="imagePreviewOverlay" onclick="closeImagePreview()">
                     <div class="image-preview-container" onclick="event.stopPropagation()">
-                        <button class="image-preview-close" onclick="closeImagePreview()">×</button>
+                        <button class="image-preview-close" onclick="closeImagePreview()" aria-label="关闭">×</button>
                         <button class="image-preview-nav prev" onclick="prevImagePreview()">‹</button>
-                        <img id="previewImage">
+                        <img id="communityPreviewImage" alt="原图预览">
                         <button class="image-preview-nav next" onclick="nextImagePreview()">›</button>
                         <div class="image-preview-counter" id="imagePreviewCounter">1/1</div>
+                        <div class="image-preview-hint">原图预览 · 点击背景或按 ESC 关闭</div>
                     </div>
                 </div>
 
                 <!-- 个人中心页面 -->
-                <div id="profile" class="tab-content active">
+                <div id="profile" class="tab-content profile-tab">
+                    <div class="profile-custom-bg" id="profileCustomBg"></div>
+                    <div class="profile-custom-bg-overlay" id="profileCustomBgOverlay"></div>
+                    <div class="profile-page-inner">
+                    <section class="app-page-banner profile-banner" id="profileBanner" style="background-image: url('https://images.unsplash.com/photo-1607237138185-eedd9c632b0f?w=1920&q=80');">
+                        <div class="app-page-banner-overlay"></div>
+                        <div class="app-page-banner-content">
+                            <p class="home-section-label">Account</p>
+                            <h1 class="app-page-title">我的账户</h1>
+                            <p class="app-page-subtitle">登录后解锁打卡、运动、社区等全部功能。</p>
+                        </div>
+                    </section>
+                    <div class="app-page-body">
                     <div class="login-form" id="loginForm">
-                        <h3 class="modal-header">🔐 用户登录</h3>
+                        <h3 class="modal-header">用户登录</h3>
                         <input type="email" class="input-field" id="loginEmail" placeholder="邮箱地址">
                         <input type="password" class="input-field" id="loginPassword" placeholder="密码">
                         <div class="login-options">
@@ -313,7 +610,7 @@
                     </div>
 
                     <div class="login-form" id="registerForm" style="display: none;">
-                        <h3 class="modal-header">📝 用户注册</h3>
+                        <h3 class="modal-header">用户注册</h3>
                         <div class="form-group">
                             <input type="text" class="input-field" id="regNickname" placeholder="昵称（2-20个字符，中英文、数字、下划线）">
                             <span class="validation-message" id="nicknameValidation"></span>
@@ -337,7 +634,7 @@
                     </div>
 
                     <div class="login-form" id="forgotPasswordForm" style="display: none;">
-                        <h3 class="modal-header">🔑 忘记密码</h3>
+                        <h3 class="modal-header">忘记密码</h3>
                         <input type="email" class="input-field" id="forgotEmail" placeholder="请输入注册时的邮箱">
                         <button class="btn btn-primary btn-block" onclick="forgotPassword()">发送重置链接</button>
                         <div class="login-link">
@@ -346,6 +643,13 @@
                     </div>
 
                     <div id="profileContent" style="display: none;">
+                        <div class="profile-bg-toolbar">
+                            <label class="btn btn-secondary btn-sm profile-bg-upload-label">
+                                🖼️ 上传背景
+                                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" id="profileBgInput" onchange="handleProfileBgUpload(event)" style="display: none;">
+                            </label>
+                            <button class="btn btn-secondary btn-sm" id="profileBgResetBtn" onclick="resetProfileBackground()" style="display: none;">恢复默认背景</button>
+                        </div>
                         <div class="profile-info">
                             <div class="profile-avatar-container">
                                 <div class="profile-avatar" id="profileAvatar">👤</div>
@@ -492,6 +796,12 @@
                             </div>
                         </div>
                     </div>
+                    <footer class="app-page-footer">
+                        <span>© 2026 武汉理工大学智能导游</span>
+                        <span>个人账户 · 资料管理</span>
+                    </footer>
+                    </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -536,6 +846,6 @@
     </div>
 
     <!-- 加载外部脚本 - 添加版本号强制刷新缓存 -->
-    <script src="/static/js/app.js?v=20240608"></script>
+    <script src="/static/js/app.js?v=20260530f"></script>
 </body>
 </html>

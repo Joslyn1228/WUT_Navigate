@@ -3,6 +3,18 @@ from .schemas import PlaceInfo
 
 class PlaceDatabase:
     """校内场所数据库"""
+
+    PLACE_ALIASES: Dict[str, str] = {
+        "马房山图书馆": "西院图书馆",
+        "鉴湖": "鉴湖艾特楼",
+        "艾特楼": "鉴湖艾特楼",
+        "学生活动中心": "大学生活动中心",
+        "活动中心": "大学生活动中心",
+        "一食堂": "学生食堂",
+        "二食堂": "学生食堂",
+        "食堂": "学生食堂",
+        "体育馆": "南湖体育馆",
+    }
     
     # 南湖校区地理边界
     NANHU_BOUNDS = {
@@ -102,14 +114,61 @@ class PlaceDatabase:
     
     def get_place(self, name: str) -> Optional[PlaceInfo]:
         """根据名称获取场所信息"""
-        # 精确匹配
+        if not name:
+            return None
+        name = name.strip()
         if name in self.places:
             return self.places[name]
-        # 模糊匹配
+        if name in self.PLACE_ALIASES:
+            return self.places.get(self.PLACE_ALIASES[name])
         for place_name, info in self.places.items():
             if name in place_name or place_name in name:
                 return info
         return None
+
+    def _disambiguate_library(self, text: str) -> Optional[str]:
+        if "南湖" in text or "新校区" in text:
+            return "南湖图书馆"
+        if any(k in text for k in ("西院", "马房山", "鉴湖", "东院")):
+            return "西院图书馆"
+        return None
+
+    def match_place_from_text(self, text: str) -> Optional[str]:
+        """从自然语言文本中匹配最佳场所标准名"""
+        if not text:
+            return None
+        text = text.strip()
+
+        for name in sorted(self.places.keys(), key=len, reverse=True):
+            if name in text:
+                return name
+
+        for alias, canonical in sorted(self.PLACE_ALIASES.items(), key=lambda x: len(x[0]), reverse=True):
+            if alias in text:
+                return canonical
+
+        if "图书馆" in text:
+            library = self._disambiguate_library(text)
+            if library:
+                return library
+
+        for place in self.places.values():
+            core = place.name.replace("武汉理工大学", "").strip()
+            if len(core) >= 2 and core in text:
+                return place.name
+
+        keyword_hits = self.search_places(text)
+        if len(keyword_hits) == 1:
+            return keyword_hits[0].name
+        return None
+
+    def resolve_place(self, name_or_query: str, query_context: str = "") -> Optional[PlaceInfo]:
+        """综合别名、模糊匹配与上下文消歧"""
+        combined = f"{name_or_query} {query_context}".strip()
+        matched_name = self.match_place_from_text(combined)
+        if matched_name:
+            return self.places.get(matched_name)
+        return self.get_place(name_or_query.strip())
     
     def search_places(self, keyword: str) -> List[PlaceInfo]:
         """搜索场所"""

@@ -18,7 +18,7 @@ load_dotenv()
 
 # 导入核心模块
 from app.agent import WUTourGuideAgent
-from app.schemas import Location, NavigationResponse, PlaceInfo, NearbyPlacesResponse, PlaceIntroductionResponse, UserCreate, UserLogin, UserResponse, TokenResponse, ChangePasswordRequest, ResetPasswordRequest
+from app.schemas import Location, NavigationResponse, PlaceInfo, NearbyPlacesResponse, PlaceIntroductionResponse, UserCreate, UserLogin, UserResponse, TokenResponse, ChangePasswordRequest, ResetPasswordRequest, ChatMessage
 from app.extended_schemas import ApiResponse
 from app.auth_service import AuthService, SessionLocal, DBUser
 from app.fitness_service import FitnessService
@@ -63,6 +63,7 @@ async def get_current_user(Authorization: Optional[str] = "") -> str:
 class UserInput(BaseModel):
     query: str
     current_location: Optional[Location] = None
+    conversation_history: Optional[List[ChatMessage]] = None
 
 @app.get("/")
 async def root():
@@ -72,7 +73,14 @@ async def root():
 async def chat_with_agent(input_data: UserInput):
     """与导游Agent对话"""
     try:
-        result = await agent.process_query(input_data.query, input_data.current_location)
+        history = None
+        if input_data.conversation_history:
+            history = [msg.model_dump() for msg in input_data.conversation_history]
+        result = await agent.process_query(
+            input_data.query,
+            input_data.current_location,
+            history,
+        )
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -258,6 +266,7 @@ async def get_user_profile(authorization: Optional[str] = Header(None)):
 class UpdateProfileRequest(BaseModel):
     avatar: Optional[str] = None
     bio: Optional[str] = None
+    profile_background: Optional[str] = None
 
 @app.put("/api/auth/profile")
 async def update_user_profile(
@@ -267,7 +276,12 @@ async def update_user_profile(
     """更新用户个人信息（支持JSON）"""
     try:
         user_id = await get_current_user(authorization or "")
-        result = auth_service.update_profile(user_id, request.avatar, request.bio)
+        result = auth_service.update_profile(
+            user_id,
+            request.avatar,
+            request.bio,
+            request.profile_background
+        )
         return {
             "success": True,
             "message": result["message"],
@@ -279,6 +293,80 @@ async def update_user_profile(
             "message": e.detail,
             "data": None
         }
+
+@app.post("/api/auth/profile/background")
+async def upload_profile_background(
+    file: UploadFile = File(...),
+    authorization: Optional[str] = Header(None)
+):
+    """上传个人主页背景图"""
+    try:
+        user_id = await get_current_user(authorization or "")
+
+        file_content = await file.read()
+        if len(file_content) > 5 * 1024 * 1024:
+            return {"success": False, "message": "背景图片不能超过5MB", "data": None}
+
+        content_type = file.content_type or ""
+        if content_type not in ["image/jpeg", "image/png", "image/gif", "image/webp"]:
+            return {"success": False, "message": "仅支持 JPG / PNG / GIF / WEBP 格式", "data": None}
+
+        ext_map = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/gif": "gif",
+            "image/webp": "webp"
+        }
+        ext = ext_map.get(content_type, "jpg")
+        upload_dir = "static/uploads/backgrounds"
+        os.makedirs(upload_dir, exist_ok=True)
+
+        file_name = f"{user_id}_{uuid.uuid4().hex[:12]}.{ext}"
+        file_path = os.path.join(upload_dir, file_name)
+        with open(file_path, "wb") as f:
+            f.write(file_content)
+
+        background_url = f"/static/uploads/backgrounds/{file_name}"
+        result = auth_service.set_profile_background(user_id, background_url)
+
+        old_bg = result.get("old_background", "")
+        if old_bg.startswith("/static/uploads/backgrounds/"):
+            old_path = old_bg.lstrip("/")
+            if os.path.isfile(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+
+        return {
+            "success": True,
+            "message": result["message"],
+            "data": {"url": background_url}
+        }
+    except HTTPException as e:
+        return {"success": False, "message": e.detail, "data": None}
+    except Exception as e:
+        return {"success": False, "message": str(e), "data": None}
+
+@app.delete("/api/auth/profile/background")
+async def delete_profile_background(authorization: Optional[str] = Header(None)):
+    """清除个人主页自定义背景"""
+    try:
+        user_id = await get_current_user(authorization or "")
+        result = auth_service.clear_profile_background(user_id)
+
+        old_bg = result.get("old_background", "")
+        if old_bg.startswith("/static/uploads/backgrounds/"):
+            old_path = old_bg.lstrip("/")
+            if os.path.isfile(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+
+        return {"success": True, "message": result["message"], "data": None}
+    except HTTPException as e:
+        return {"success": False, "message": e.detail, "data": None}
 
 @app.post("/api/auth/status")
 async def set_user_status(status: str = Form(...), authorization: Optional[str] = Header(None)):

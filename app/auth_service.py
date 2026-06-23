@@ -39,6 +39,7 @@ class DBUser(Base):
     registered_at = Column(DateTime)
     last_login_at = Column(DateTime)
     avatar = Column(String, default="")
+    profile_background = Column(String, default="")
     bio = Column(String, default="")
     status = Column(String, default="")
     status_expires_at = Column(DateTime)
@@ -143,6 +144,19 @@ class DBWorkoutRoute(Base):
     sequence = Column(Integer, default=0)
 
 Base.metadata.create_all(bind=engine)
+
+def _migrate_user_columns():
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if 'users' not in inspector.get_table_names():
+        return
+    columns = {col['name'] for col in inspector.get_columns('users')}
+    if 'profile_background' not in columns:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN profile_background VARCHAR DEFAULT ''"))
+            conn.commit()
+
+_migrate_user_columns()
 
 class AuthService:
     def __init__(self):
@@ -487,7 +501,13 @@ class AuthService:
         
         return {"message": "密码重置成功"}
 
-    def update_profile(self, user_id: str, avatar: Optional[str] = None, bio: Optional[str] = None) -> Dict[str, str]:
+    def update_profile(
+        self,
+        user_id: str,
+        avatar: Optional[str] = None,
+        bio: Optional[str] = None,
+        profile_background: Optional[str] = None
+    ) -> Dict[str, str]:
         db = next(self.get_db())
         user = db.query(DBUser).filter(DBUser.id == user_id).first()
         
@@ -502,10 +522,35 @@ class AuthService:
         
         if bio is not None:
             user.bio = bio[:100]
+
+        if profile_background is not None:
+            user.profile_background = profile_background
         
         db.commit()
         
         return {"message": "个人信息更新成功"}
+
+    def set_profile_background(self, user_id: str, background_url: str) -> Dict[str, str]:
+        db = next(self.get_db())
+        user = db.query(DBUser).filter(DBUser.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+
+        old_bg = user.profile_background or ""
+        user.profile_background = background_url
+        db.commit()
+        return {"message": "背景更新成功", "old_background": old_bg}
+
+    def clear_profile_background(self, user_id: str) -> Dict[str, str]:
+        db = next(self.get_db())
+        user = db.query(DBUser).filter(DBUser.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+
+        old_bg = user.profile_background or ""
+        user.profile_background = ""
+        db.commit()
+        return {"message": "背景已恢复默认", "old_background": old_bg}
 
     def set_status(self, user_id: str, status: str) -> Dict[str, str]:
         db = next(self.get_db())
@@ -553,6 +598,7 @@ class AuthService:
                 "nickname": user.nickname,
                 "email": user.email,
                 "avatar": user.avatar,
+                "profile_background": getattr(user, "profile_background", "") or "",
                 "bio": user.bio,
                 "status": current_status,
                 "status_expires_at": user.status_expires_at.isoformat() if user.status_expires_at else None,

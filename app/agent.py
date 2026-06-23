@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 from .schemas import Location, NavigationResponse, NavigationStep, PlaceInfo, NearbyPlace, NearbyPlacesResponse, PlaceIntroductionResponse
 from .location_service import AMapService
 from .place_database import PlaceDatabase
@@ -27,40 +27,104 @@ class WUTourGuideAgent:
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return R * c
     
-    async def process_query(self, query: str, current_location: Optional[Location] = None) -> NavigationResponse:
+    async def _resolve_destination(
+        self,
+        query: str,
+        hinted_place: Optional[str],
+        place_names: List[str],
+    ) -> Optional[str]:
+        """将用户表达解析为标准场所名"""
+        place = self.place_database.resolve_place(hinted_place or "", query)
+        if place:
+            return place.name
+
+        matched = self.place_database.match_place_from_text(query)
+        if matched:
+            return matched
+
+        if hinted_place:
+            resolved = await self.llm_service.resolve_place_name(query, place_names, hinted_place)
+            if resolved:
+                return resolved
+
+        return await self.llm_service.resolve_place_name(query, place_names, None)
+
+    def _build_context(
+        self,
+        current_location: Optional[Location],
+        place_names: List[str],
+    ) -> str:
+        parts = []
+        if current_location:
+            parts.append(f"用户当前位置：纬度 {current_location.latitude}，经度 {current_location.longitude}")
+            if current_location.address:
+                parts.append(f"地址：{current_location.address}")
+            nearby = self.get_nearby_places(current_location, radius=500)
+            if nearby.nearby_places:
+                names = [f"{p.place.name}({p.distance}米)" for p in nearby.nearby_places[:5]]
+                parts.append(f"附近场所：{', '.join(names)}")
+        parts.append(f"校内已知场所：{', '.join(place_names)}")
+        return "\n".join(parts)
+
+    async def process_query(
+        self,
+        query: str,
+        current_location: Optional[Location] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> NavigationResponse:
         """处理用户查询 - 支持所有功能模块"""
-        intent_result = await self.llm_service.analyze_query(query)
+        place_names = [p.name for p in self.place_database.get_all_places()]
+        intent_result = await self.llm_service.analyze_query(
+            query, place_names, conversation_history
+        )
         intent = intent_result.get("intent", "question")
-        
-        if intent == "navigation":
-            destination = intent_result.get("place")
-            
-            if not destination:
+        sub_intents = intent_result.get("sub_intents") or []
+        place_hint = intent_result.get("place")
+
+        needs_place = intent in ("navigation", "introduction") or any(
+            i in sub_intents for i in ("navigation", "introduction")
+        )
+        resolved_name = None
+        if needs_place:
+            resolved_name = await self._resolve_destination(query, place_hint, place_names)
+
+        if intent == "navigation" or "navigation" in sub_intents:
+            if not resolved_name:
                 return NavigationResponse(
                     status="success",
-                    message="请告诉我您要去哪个地方",
-                    response_type="text"
+                    message="请告诉我您要去哪个地方，例如「南湖图书馆」「鉴湖艾特楼」或「学生食堂」。",
+                    response_type="text",
                 )
-            
-            return await self.get_navigation(current_location, destination)
+
+            nav_response = await self.get_navigation(current_location, resolved_name)
+
+            if "introduction" in sub_intents or intent == "introduction":
+                place = self.place_database.get_place(resolved_name)
+                if place:
+                    intro = f"\n\n📖 {place.name}介绍：\n{place.description}"
+                    nav_response.message = (nav_response.message or "") + intro
+                    nav_response.response_type = "navigation"
+
+            return nav_response
         
         elif intent == "introduction":
-            place_name = intent_result.get("place") or query
-            place = self.place_database.get_place(place_name)
-            
+            if resolved_name:
+                place = self.place_database.get_place(resolved_name)
+            else:
+                place = self.place_database.resolve_place(query)
+
             if place:
                 return NavigationResponse(
                     status="success",
                     message=place.description,
                     place_info=place,
-                    response_type="introduction"
+                    response_type="introduction",
                 )
-            else:
-                return NavigationResponse(
-                    status="success",
-                    message=f"未找到'{place_name}'相关信息，试试其他场所吧！",
-                    response_type="text"
-                )
+            return NavigationResponse(
+                status="success",
+                message="暂未找到相关场所，您可以试试「南湖图书馆」「西院图书馆」「南湖体育馆」等具体名称。",
+                response_type="text",
+            )
         
         elif intent == "auth":
             help_text = await self.llm_service.generate_help_response("auth")
@@ -110,20 +174,23 @@ class WUTourGuideAgent:
             )
         
         else:
-            context = f"当前位置：{current_location}" if current_location else ""
-            answer = await self.llm_service.generate_response(query, context)
+            context = self._build_context(current_location, place_names)
+            answer = await self.llm_service.generate_response(
+                query, context, conversation_history
+            )
             return NavigationResponse(
                 status="success",
                 message=answer,
-                response_type="text"
+                response_type="text",
             )
     
     async def get_navigation(self, start_location: Optional[Location], destination_name: str) -> NavigationResponse:
         """获取导航路线"""
         destination = None
-        place = self.place_database.get_place(destination_name)
+        place = self.place_database.resolve_place(destination_name)
         
         if place:
+            destination_name = place.name
             destination = Location(
                 latitude=place.latitude,
                 longitude=place.longitude,

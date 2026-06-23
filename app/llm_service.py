@@ -1,9 +1,10 @@
 import os
+import re
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import json
 
 load_dotenv()
@@ -15,6 +16,7 @@ class LLMService:
         self.api_key = os.getenv("DEEPSEEK_API_KEY")
         self.api_base = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
         self._model = None
+        self._intent_model = None
         
         self.system_prompt = """
 你是武汉理工大学智能助手，专为师生和访客提供全方位的校园服务。
@@ -81,64 +83,232 @@ class LLMService:
                 temperature=0.7
             )
         return self._model
-    
-    async def analyze_query(self, query: str) -> dict:
-        """分析用户查询意图，支持所有功能模块"""
-        prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content="""
-你是一个意图分析助手。请分析用户的查询意图，判断是以下哪种类型：
 
-1. navigation: 请求导航或路线规划，包含'去'、'怎么走'、'导航'、'路线'等关键词
-2. introduction: 请求场所介绍，询问某个地方是什么样的
-3. auth: 用户账户相关问题，包含'注册'、'登录'、'密码'、'头像'、'账户'等关键词
-4. fitness: 运动健康相关问题，包含'运动'、'跑步'、'步行'、'统计'、'历史'等关键词
-5. checkin: 打卡相关问题，包含'打卡'、'成就'、'签到'等关键词
-6. community: 社区相关问题，包含'发帖'、'动态'、'评论'、'点赞'等关键词
-7. guide: 景点讲解相关，包含'讲解'、'景点'、'介绍'等关键词
-8. question: 一般性问题，不涉及以上类别
-9. greeting: 问候或闲聊
+    @property
+    def intent_model(self):
+        if self._intent_model is None:
+            self._intent_model = ChatOpenAI(
+                model="deepseek-chat",
+                api_key=self.api_key,
+                base_url=self.api_base,
+                temperature=0.1
+            )
+        return self._intent_model
 
-请返回JSON格式，包含intent字段和相关参数。如果涉及具体场所或功能，请包含相关字段。
-"""),
-            HumanMessage(content=f"用户查询：{query}")
-        ])
-        
-        chain = prompt | self.model
-        response = await chain.ainvoke({})
-        
+    @staticmethod
+    def _extract_json(text: str) -> Optional[dict]:
+        if not text:
+            return None
+        text = text.strip()
+        fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+        if fence_match:
+            text = fence_match.group(1).strip()
         try:
-            result = json.loads(response.content)
-            return result
-        except:
-            return self._analyze_query_fallback(query)
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        brace_match = re.search(r"\{[\s\S]*\}", text)
+        if brace_match:
+            try:
+                return json.loads(brace_match.group(0))
+            except json.JSONDecodeError:
+                pass
+        return None
+
+    def _build_intent_system_prompt(self, place_names: Optional[List[str]] = None) -> str:
+        places_section = ""
+        if place_names:
+            places_section = f"""
+=== 已知校内场所（place 字段必须从中选取标准名称，无法确定时填 null）===
+{", ".join(place_names)}
+"""
+        return f"""
+你是武汉理工大学导航平台的意图理解模块。请结合对话上下文，准确理解用户的真实需求。
+
+=== 意图类型 ===
+- navigation: 想去某处、问路、怎么走、导航、带我到…
+- introduction: 询问某场所是什么、介绍、特色、历史
+- auth: 注册、登录、密码、头像、账户
+- fitness: 运动、跑步、步行、骑行、运动统计
+- checkin: 打卡、签到、成就、徽章
+- community: 发帖、动态、评论、点赞
+- guide: 景点讲解、语音讲解、收听介绍
+- greeting: 你好、在吗等问候
+- question: 其他一般性问题
+
+=== 复合意图 ===
+若用户同时要求「导航+介绍」（如「带我去南湖图书馆并介绍一下」），intent 填主意图 navigation，sub_intents 填 ["navigation", "introduction"]。
+
+=== 口语理解示例 ===
+- 「马房山那边图书馆」→ place: 西院图书馆
+- 「鉴湖教学楼」→ place: 鉴湖艾特楼
+- 「想去吃饭」→ place: 学生食堂
+- 「图书馆在哪」→ intent: navigation 或 introduction，place 需结合上下文（南湖→南湖图书馆）
+- 「刚才说的那个图书馆」→ 参考对话历史推断 place
+{places_section}
+=== 输出要求 ===
+只输出一个 JSON 对象，不要 markdown，不要解释。字段：
+- intent: 字符串，上述类型之一
+- place: 标准场所名或 null
+- sub_intents: 字符串数组，无复合意图时省略或 []
+- confidence: 0~1 的数字
+- rewritten_query: 用一句话概括用户真实意图（中文）
+""".strip()
+
+    def _format_conversation_history(self, history: Optional[List[Dict[str, str]]]) -> str:
+        if not history:
+            return "（无历史对话）"
+        lines = []
+        for msg in history[-6:]:
+            role = "用户" if msg.get("role") == "user" else "助手"
+            content = (msg.get("content") or "").strip()
+            if content:
+                lines.append(f"{role}：{content}")
+        return "\n".join(lines) if lines else "（无历史对话）"
+
+    async def analyze_query(
+        self,
+        query: str,
+        place_names: Optional[List[str]] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> dict:
+        """分析用户查询意图，支持对话上下文与场所列表"""
+        system_prompt = self._build_intent_system_prompt(place_names)
+        history_text = self._format_conversation_history(conversation_history)
+
+        prompt = ChatPromptTemplate.from_messages([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"""对话历史：
+{history_text}
+
+当前用户输入：{query}"""),
+        ])
+
+        chain = prompt | self.intent_model
+        response = await chain.ainvoke({})
+        result = self._extract_json(response.content)
+
+        if result and result.get("intent"):
+            normalized = {
+                "intent": result.get("intent", "question"),
+                "place": result.get("place") or None,
+                "sub_intents": result.get("sub_intents") or [],
+                "confidence": result.get("confidence", 0.8),
+                "rewritten_query": result.get("rewritten_query", query),
+                "query": query,
+            }
+            if normalized["place"] == "null":
+                normalized["place"] = None
+            return normalized
+
+        return self._analyze_query_fallback(query, place_names, conversation_history)
     
-    def _analyze_query_fallback(self, query: str) -> dict:
+    def _analyze_query_fallback(
+        self,
+        query: str,
+        place_names: Optional[List[str]] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> dict:
         """意图分析降级处理"""
         keywords_map = {
-            "navigation": ["去", "怎么走", "导航", "路线", "位置", "在哪", "到达"],
-            "introduction": ["是什么", "介绍", "怎么样", "历史", "特色"],
+            "navigation": ["去", "怎么走", "导航", "路线", "在哪", "到达", "带我去", "领我去", "怎么到"],
+            "introduction": ["是什么", "介绍", "怎么样", "历史", "特色", "讲讲", "说说"],
             "auth": ["注册", "登录", "密码", "头像", "账户", "账号", "个人信息"],
             "fitness": ["运动", "跑步", "步行", "骑行", "统计", "历史", "记录"],
             "checkin": ["打卡", "签到", "成就", "徽章", "连续"],
             "community": ["发帖", "动态", "评论", "点赞", "分享", "帖子"],
-            "guide": ["讲解", "景点", "介绍", "收听"],
+            "guide": ["讲解", "景点", "收听", "语音"],
         }
-        
+
+        detected_intents = []
         for intent, keywords in keywords_map.items():
             if any(keyword in query for keyword in keywords):
-                return {"intent": intent, "query": query}
-        
-        if any(greeting in query for greeting in ["你好", "嗨", "哈喽", "Hi", "Hello"]):
-            return {"intent": "greeting", "query": query}
-        
-        return {"intent": "question", "query": query}
+                detected_intents.append(intent)
+
+        place = None
+        search_text = query
+        if place_names:
+            for name in sorted(place_names, key=len, reverse=True):
+                if name in search_text:
+                    place = name
+                    break
+        if not place and conversation_history:
+            for msg in reversed(conversation_history):
+                if msg.get("role") == "user":
+                    for name in sorted(place_names or [], key=len, reverse=True):
+                        if name in (msg.get("content") or ""):
+                            place = name
+                            break
+                if place:
+                    break
+
+        if "navigation" in detected_intents and "introduction" in detected_intents:
+            primary = "navigation"
+            sub_intents = ["navigation", "introduction"]
+        elif detected_intents:
+            primary = detected_intents[0]
+            sub_intents = detected_intents[:2] if len(detected_intents) > 1 else []
+        elif any(greeting in query for greeting in ["你好", "嗨", "哈喽", "Hi", "Hello", "在吗"]):
+            primary = "greeting"
+            sub_intents = []
+        else:
+            primary = "question"
+            sub_intents = []
+
+        result = {
+            "intent": primary,
+            "place": place,
+            "sub_intents": sub_intents,
+            "confidence": 0.5,
+            "rewritten_query": query,
+            "query": query,
+        }
+        return result
+
+    async def resolve_place_name(
+        self,
+        query: str,
+        place_names: List[str],
+        hinted_place: Optional[str] = None,
+    ) -> Optional[str]:
+        """用 LLM 将口语化表达规范化为标准场所名"""
+        if hinted_place and hinted_place in place_names:
+            return hinted_place
+
+        prompt = ChatPromptTemplate.from_messages([
+            SystemMessage(content=f"""从用户话术中识别要去的/要介绍的校内场所。
+标准场所列表：{", ".join(place_names)}
+只输出 JSON：{{"place": "标准名或null"}}，不要其他文字。"""),
+            HumanMessage(content=f"用户说：{query}\n初步识别：{hinted_place or '无'}"),
+        ])
+        chain = prompt | self.intent_model
+        response = await chain.ainvoke({})
+        parsed = self._extract_json(response.content)
+        if parsed:
+            place = parsed.get("place")
+            if place and place != "null" and place in place_names:
+                return place
+        return hinted_place
     
-    async def generate_response(self, query: str, context: Optional[str] = None) -> str:
+    async def generate_response(
+        self,
+        query: str,
+        context: Optional[str] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> str:
         """生成自然语言响应"""
-        messages = [
-            SystemMessage(content=self.system_prompt),
-            HumanMessage(content=f"上下文信息：{context}\n\n用户问题：{query}")
-        ]
+        messages = [SystemMessage(content=self.system_prompt)]
+        if conversation_history:
+            for msg in conversation_history[-6:]:
+                content = (msg.get("content") or "").strip()
+                if not content:
+                    continue
+                if msg.get("role") == "user":
+                    messages.append(HumanMessage(content=content))
+                else:
+                    messages.append(AIMessage(content=content))
+        context_block = f"上下文信息：{context}\n\n" if context else ""
+        messages.append(HumanMessage(content=f"{context_block}用户问题：{query}"))
         
         response = await self.model.ainvoke(messages)
         return response.content
@@ -150,13 +320,13 @@ class LLMService:
             HumanMessage(content=f"用户查询：{query}")
         ])
         
-        chain = prompt | self.model
+        chain = prompt | self.intent_model
         response = await chain.ainvoke({})
         
-        try:
-            return json.loads(response.content)
-        except:
-            return {"origin": None, "destination": None}
+        parsed = self._extract_json(response.content)
+        if parsed:
+            return parsed
+        return {"origin": None, "destination": None}
     
     async def get_function_call(self, query: str) -> Dict[str, Any]:
         """根据用户查询生成函数调用信息"""

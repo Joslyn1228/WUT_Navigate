@@ -10,6 +10,7 @@
         let proximityCheckInterval = null;
         let lastNearbyPlace = null;
         let guideMapInstance = null;
+        const navChatHistory = [];
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -19,17 +20,28 @@
         }
 
         function switchTab(tabId) {
-            const navItems = document.querySelectorAll('.nav-item');
-            navItems.forEach(item => item.classList.remove('active'));
-            
-            const currentNavItem = event.target;
-            if (currentNavItem) {
-                currentNavItem.classList.add('active');
-            }
+            document.querySelectorAll('.sidebar .nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === tabId);
+            });
 
             const contents = document.querySelectorAll('.tab-content');
             contents.forEach(c => c.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
+
+            if (tabId === 'home') {
+                document.body.classList.add('page-home');
+                document.body.classList.remove('page-app');
+                window.scrollTo(0, 0);
+            } else {
+                document.body.classList.remove('page-home');
+                document.body.classList.add('page-app');
+                window.scrollTo(0, 0);
+            }
+
+            updateMontoniNav(tabId);
+
+            const montoniNav = document.getElementById('montoniNav');
+            if (montoniNav) montoniNav.classList.remove('open');
 
             if (tabId === 'guide') {
                 initGuidePage();
@@ -44,6 +56,89 @@
             }
         }
 
+        function updateMontoniNav(tabId) {
+            document.querySelectorAll('.montoni-nav a[data-nav]').forEach(a => {
+                a.classList.toggle('active', a.dataset.nav === tabId);
+            });
+
+            const cta = document.getElementById('navProfileBtn');
+            if (cta) {
+                if (currentToken && currentUser) {
+                    cta.textContent = currentUser.nickname || '我的账户';
+                } else {
+                    cta.textContent = '登录 / 注册';
+                }
+            }
+
+            const header = document.getElementById('montoniHeader');
+            if (header) {
+                if (tabId === 'home') {
+                    header.classList.toggle('scrolled', window.scrollY > 40);
+                } else {
+                    header.classList.add('scrolled');
+                }
+            }
+        }
+
+        let heroSlideIndex = 0;
+        let heroSlideTimer = null;
+
+        function goToHeroSlide(index) {
+            const slides = document.querySelectorAll('.hero-slide');
+            const indicators = document.querySelectorAll('.hero-indicator');
+            if (!slides.length) return;
+
+            heroSlideIndex = index;
+            slides.forEach((s, i) => s.classList.toggle('active', i === index));
+            indicators.forEach((ind, i) => ind.classList.toggle('active', i === index));
+        }
+
+        function nextHeroSlide() {
+            const slides = document.querySelectorAll('.hero-slide');
+            if (!slides.length) return;
+            goToHeroSlide((heroSlideIndex + 1) % slides.length);
+        }
+
+        function initHomePage() {
+            const heroVideo = document.getElementById('heroVideoBg');
+            if (heroVideo) {
+                heroVideo.play().catch(() => {
+                    document.addEventListener('click', () => heroVideo.play(), { once: true });
+                });
+            }
+
+            const indicators = document.querySelectorAll('.hero-indicator');
+            indicators.forEach(ind => {
+                ind.addEventListener('click', () => {
+                    goToHeroSlide(parseInt(ind.dataset.slide, 10));
+                    resetHeroTimer();
+                });
+            });
+
+            if (heroSlideTimer) clearInterval(heroSlideTimer);
+            heroSlideTimer = setInterval(nextHeroSlide, 6000);
+
+            const header = document.getElementById('montoniHeader');
+            if (header) {
+                window.addEventListener('scroll', () => {
+                    if (document.body.classList.contains('page-home')) {
+                        header.classList.toggle('scrolled', window.scrollY > 40);
+                    }
+                }, { passive: true });
+            }
+
+            const menuToggle = document.getElementById('montoniMenuToggle');
+            const nav = document.getElementById('montoniNav');
+            if (menuToggle && nav) {
+                menuToggle.addEventListener('click', () => nav.classList.toggle('open'));
+            }
+        }
+
+        function resetHeroTimer() {
+            if (heroSlideTimer) clearInterval(heroSlideTimer);
+            heroSlideTimer = setInterval(nextHeroSlide, 6000);
+        }
+
         function toggleChatPanel() {
             const panel = document.getElementById('floatingChatPanel');
             panel.classList.toggle('show');
@@ -53,6 +148,14 @@
         let offsetX, offsetY;
 
         document.addEventListener('DOMContentLoaded', function() {
+            initHomePage();
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && document.getElementById('imagePreviewOverlay').classList.contains('show')) {
+                    closeImagePreview();
+                }
+            });
+
             const chatBtn = document.getElementById('floatingChatBtn');
             
             chatBtn.addEventListener('mousedown', function(e) {
@@ -564,8 +667,10 @@
             const query = input.value.trim();
             
             if (!query) return;
-            
+
+            const historyForApi = navChatHistory.slice(-6);
             addNavMessage('user', query);
+            navChatHistory.push({ role: 'user', content: query });
             input.value = '';
             
             try {
@@ -574,24 +679,35 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         query: query,
-                        current_location: currentLocation
+                        current_location: currentLocation,
+                        conversation_history: historyForApi
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.status === 'success') {
+                    const botText = data.message || '已收到您的请求';
                     if (data.route || data.total_distance) {
                         showNavigation(data);
+                        if (botText) {
+                            addNavMessage('bot', botText);
+                            navChatHistory.push({ role: 'assistant', content: botText });
+                        }
                     } else {
-                        addNavMessage('bot', data.message || '已收到您的请求');
+                        addNavMessage('bot', botText);
+                        navChatHistory.push({ role: 'assistant', content: botText });
                     }
                 } else {
-                    addNavMessage('bot', data.message || '抱歉，我无法理解您的问题');
+                    const errMsg = data.message || '抱歉，我无法理解您的问题';
+                    addNavMessage('bot', errMsg);
+                    navChatHistory.push({ role: 'assistant', content: errMsg });
                 }
             } catch (error) {
                 console.error('请求失败:', error);
-                addNavMessage('bot', '网络请求失败，请稍后重试');
+                const errMsg = '网络请求失败，请稍后重试';
+                addNavMessage('bot', errMsg);
+                navChatHistory.push({ role: 'assistant', content: errMsg });
             }
         }
 
@@ -608,7 +724,14 @@
             
             const avatar = document.createElement('div');
             avatar.className = `avatar ${sender}`;
-            avatar.textContent = sender === 'user' ? '👤' : '🤖';
+            if (sender === 'user' && currentUser?.avatar && isImageAvatar(currentUser.avatar)) {
+                avatar.classList.add('has-image');
+                avatar.style.backgroundImage = `url(${currentUser.avatar})`;
+                avatar.style.backgroundSize = 'cover';
+                avatar.style.backgroundPosition = 'center';
+            } else {
+                avatar.textContent = sender === 'user' ? '👤' : '🤖';
+            }
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
@@ -1308,31 +1431,41 @@
                 const timeSlots = activity.time_slots || [];
                 
                 const card = document.createElement('div');
-                card.className = 'activity-card';
+                card.className = 'flip-card activity-flip-card';
                 
                 if (isActive) card.classList.add('active');
                 if (isCompleted) card.classList.add('completed');
                 
+                const statusText = isCompleted ? '已完成' : (isActive ? '可打卡' : '进行中');
+                
                 card.innerHTML = `
-                    <div class="activity-header">
-                        <div class="activity-icon-large">${activity.icon || '🎯'}</div>
-                        <div class="activity-title">
-                            <div class="activity-name">${activity.name || '未知活动'}</div>
-                            <div class="activity-time-slots">⏰ ${timeSlots.join(' / ') || '待定'}</div>
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <div class="flip-card-visual">
+                                <span class="flip-card-icon">${activity.icon || '🎯'}</span>
+                            </div>
+                            <div class="flip-card-label">
+                                <span class="flip-card-name">${activity.name || '未知活动'}</span>
+                                <span class="flip-card-meta">${statusText}</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="activity-desc">${activity.description || ''}</div>
-                    <div class="activity-progress">
-                        <div class="activity-progress-bar">
-                            <div class="activity-progress-fill" style="width: ${activity.progress || 0}%"></div>
+                        <div class="flip-card-back">
+                            <div class="flip-card-back-content">
+                                <h4>${activity.name || '未知活动'}</h4>
+                                <p class="flip-card-desc">${activity.description || '暂无描述'}</p>
+                                <p class="flip-card-time">⏰ ${timeSlots.join(' / ') || '待定'}</p>
+                                <div class="activity-progress">
+                                    <div class="activity-progress-bar">
+                                        <div class="activity-progress-fill" style="width: ${activity.progress || 0}%"></div>
+                                    </div>
+                                    <div class="activity-progress-text">
+                                        <span>进度</span>
+                                        <span>${activity.count || 0} / ${activity.required || 20}</span>
+                                    </div>
+                                </div>
+                                <span class="activity-status-tag">${isCompleted ? '✓ 已完成' : (isActive ? '🔥 可打卡' : '⏳ 进行中')}</span>
+                            </div>
                         </div>
-                        <div class="activity-progress-text">
-                            <span>进度</span>
-                            <span>${activity.count || 0} / ${activity.required || 20}</span>
-                        </div>
-                    </div>
-                    <div class="activity-status">
-                        ${isCompleted ? '✓ 已完成' : (isActive ? '🔥 可打卡' : '⏳ 进行中')}
                     </div>
                 `;
                 
@@ -1354,7 +1487,7 @@
                 if (currentAchievementFilter === 'hidden' && !achievement.hidden) return;
                 
                 const card = document.createElement('div');
-                card.className = 'achievement-card';
+                card.className = 'flip-card achievement-flip-card';
                 card.classList.add(achievement.rarity);
                 
                 if (isUnlocked) {
@@ -1369,7 +1502,7 @@
                 
                 const displayIcon = achievement.hidden && !isUnlocked ? '❓' : achievement.icon;
                 const displayName = achievement.hidden && !isUnlocked ? '???' : achievement.name;
-                const displayDesc = achievement.hidden && !isUnlocked ? '???' : achievement.desc;
+                const displayDesc = achievement.hidden && !isUnlocked ? '完成隐藏条件后解锁' : achievement.desc;
                 
                 let progressPercent = 0;
                 if (!isUnlocked && achievement.type !== 'hidden_condition') {
@@ -1378,26 +1511,34 @@
                 }
                 
                 card.innerHTML = `
-                    <div class="achievement-icon-wrapper">
-                        <div class="achievement-icon">${displayIcon}</div>
-                    </div>
-                    <div class="achievement-info">
-                        <div class="achievement-header">
-                            <div class="achievement-name">${displayName}</div>
-                            <span class="achievement-rarity ${achievement.rarity}">${getRarityText(achievement.rarity)}</span>
-                        </div>
-                        <div class="achievement-desc">${displayDesc}</div>
-                        ${!isUnlocked && achievement.type !== 'hidden_condition' ? `
-                        <div class="achievement-progress">
-                            <div class="achievement-progress-bar">
-                                <div class="achievement-progress-fill" style="width: ${progressPercent}%"></div>
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <div class="flip-card-visual">
+                                <span class="flip-card-icon">${displayIcon}</span>
                             </div>
-                            <span class="achievement-progress-text">${progressPercent}%</span>
+                            <div class="flip-card-label">
+                                <span class="flip-card-name">${displayName}</span>
+                                <span class="flip-card-meta">${getRarityText(achievement.rarity)}</span>
+                            </div>
                         </div>
-                        ` : ''}
-                        ${isUnlocked && unlockTime ? `
-                        <div class="achievement-unlock-time">解锁于 ${formatUnlockTime(unlockTime)}</div>
-                        ` : ''}
+                        <div class="flip-card-back">
+                            <div class="flip-card-back-content">
+                                <h4>${displayName}</h4>
+                                <span class="achievement-rarity-tag">${getRarityText(achievement.rarity)}</span>
+                                <p class="flip-card-desc">${displayDesc}</p>
+                                ${!isUnlocked && achievement.type !== 'hidden_condition' ? `
+                                <div class="achievement-progress">
+                                    <div class="achievement-progress-bar">
+                                        <div class="achievement-progress-fill" style="width: ${progressPercent}%"></div>
+                                    </div>
+                                    <span class="achievement-progress-text">${progressPercent}% 完成</span>
+                                </div>
+                                ` : ''}
+                                ${isUnlocked && unlockTime ? `
+                                <div class="achievement-unlock-time">解锁于 ${formatUnlockTime(unlockTime)}</div>
+                                ` : (isUnlocked ? '<div class="achievement-unlock-time">已解锁 ✓</div>' : '')}
+                            </div>
+                        </div>
                     </div>
                 `;
                 
@@ -1734,8 +1875,11 @@
 
         function showProfile() {
             document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('forgotPasswordForm').style.display = 'none';
             document.getElementById('profileContent').style.display = 'block';
             document.getElementById('profileName').textContent = currentUser?.nickname || '用户';
+            updateMontoniNav('profile');
             loadProfile();
         }
 
@@ -1751,11 +1895,120 @@
             sessionStorage.removeItem('wut_token');
             sessionStorage.removeItem('wut_user');
             document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('forgotPasswordForm').style.display = 'none';
             document.getElementById('profileContent').style.display = 'none';
+            applyProfileBackground('');
+            updateMontoniNav('profile');
         }
 
         let selectedAvatar = '';
         let selectedStatus = '';
+
+        function isImageAvatar(avatar) {
+            return avatar && (
+                avatar.startsWith('data:image/') ||
+                avatar.startsWith('/static/') ||
+                avatar.startsWith('http')
+            );
+        }
+
+        function renderUserAvatarHtml(avatar, nickname, className = 'post-avatar') {
+            const name = nickname || '用户';
+            if (isImageAvatar(avatar)) {
+                const safeUrl = avatar.replace(/'/g, "\\'");
+                return `<div class="${className} has-image" style="background-image:url('${safeUrl}')"></div>`;
+            }
+            const display = avatar || name.charAt(0) || '👤';
+            return `<div class="${className}">${display}</div>`;
+        }
+
+        function applyAvatarToElement(element, avatar, fallback = '👤') {
+            if (!element) return;
+            if (isImageAvatar(avatar)) {
+                element.style.backgroundImage = `url(${avatar})`;
+                element.style.backgroundSize = 'cover';
+                element.style.backgroundPosition = 'center';
+                element.textContent = '';
+                element.classList.add('has-image');
+            } else {
+                element.textContent = avatar || fallback;
+                element.style.backgroundImage = '';
+                element.style.backgroundSize = '';
+                element.style.backgroundPosition = '';
+                element.classList.remove('has-image');
+            }
+        }
+
+        function applyProfileBackground(url) {
+            const profileTab = document.getElementById('profile');
+            const bgEl = document.getElementById('profileCustomBg');
+            const resetBtn = document.getElementById('profileBgResetBtn');
+            if (!profileTab || !bgEl) return;
+
+            if (url) {
+                bgEl.style.backgroundImage = `url(${url})`;
+                profileTab.classList.add('has-custom-bg');
+                if (resetBtn) resetBtn.style.display = 'inline-flex';
+            } else {
+                bgEl.style.backgroundImage = '';
+                profileTab.classList.remove('has-custom-bg');
+                if (resetBtn) resetBtn.style.display = 'none';
+            }
+        }
+
+        async function handleProfileBgUpload(event) {
+            const file = event.target.files[0];
+            if (!file || !currentToken) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('背景图片不能超过 5MB');
+                event.target.value = '';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/auth/profile/background', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${currentToken}` },
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success && data.data?.url) {
+                    applyProfileBackground(data.data.url);
+                } else {
+                    alert(data.message || '上传失败');
+                }
+            } catch (error) {
+                console.error('上传背景失败:', error);
+                alert('上传失败');
+            }
+            event.target.value = '';
+        }
+
+        async function resetProfileBackground() {
+            if (!currentToken) return;
+            if (!confirm('确定恢复默认背景？')) return;
+
+            try {
+                const response = await fetch('/api/auth/profile/background', {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${currentToken}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    applyProfileBackground('');
+                } else {
+                    alert(data.message || '操作失败');
+                }
+            } catch (error) {
+                console.error('清除背景失败:', error);
+                alert('操作失败');
+            }
+        }
 
         async function loadProfile() {
             if (!currentToken) return;
@@ -1771,19 +2024,15 @@
                     document.getElementById('profileName').textContent = profile.nickname;
                     document.getElementById('profileEmail').textContent = profile.email;
                     
-                    const avatarElement = document.getElementById('profileAvatar');
-                    if (profile.avatar && profile.avatar.startsWith('data:image/')) {
-                        avatarElement.style.backgroundImage = `url(${profile.avatar})`;
-                        avatarElement.style.backgroundSize = 'cover';
-                        avatarElement.textContent = '';
-                    } else {
-                        avatarElement.textContent = profile.avatar || '👤';
-                        avatarElement.style.backgroundImage = '';
-                        avatarElement.style.backgroundSize = '';
-                    }
+                    applyAvatarToElement(
+                        document.getElementById('profileAvatar'),
+                        profile.avatar,
+                        '👤'
+                    );
                     
                     document.getElementById('profileBio').textContent = profile.bio || '暂无签名';
                     document.getElementById('profileStatus').textContent = profile.status || '';
+                    applyProfileBackground(profile.profile_background || '');
                 }
             } catch (error) {
                 console.error('加载个人信息失败:', error);
@@ -1953,6 +2202,7 @@
             }
             
             checkAuth();
+            updateMontoniNav(document.querySelector('.tab-content.active')?.id || 'home');
             
             setTimeout(() => {
                 initMapLazy();
@@ -1985,14 +2235,10 @@
                 
                 if (data.success) {
                     if (uploadedAvatarData) {
-                        document.getElementById('profileAvatar').style.backgroundImage = `url(${uploadedAvatarData})`;
-                        document.getElementById('profileAvatar').style.backgroundSize = 'cover';
-                        document.getElementById('profileAvatar').textContent = '';
-                    } else {
-                        document.getElementById('profileAvatar').textContent = selectedAvatar;
-                        document.getElementById('profileAvatar').style.backgroundImage = '';
-                        document.getElementById('profileAvatar').style.backgroundSize = '';
-                    }
+                    applyAvatarToElement(document.getElementById('profileAvatar'), uploadedAvatarData);
+                } else {
+                    applyAvatarToElement(document.getElementById('profileAvatar'), selectedAvatar, '👤');
+                }
                     closeAvatarPicker();
                     alert('头像保存成功！');
                 } else {
@@ -2229,22 +2475,85 @@
                 }
 
                 feed.innerHTML = data.data.map(post => renderPost(post)).join('');
+                initPostImageFans();
             } catch (error) {
                 console.error('加载社区动态失败:', error);
                 feed.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><p>加载失败</p></div>';
             }
         }
 
+        function buildFanImagesHtml(images) {
+            if (!images || images.length === 0) return '';
+            const urls = images.map(i => i.url);
+            const count = images.length;
+            const fanClass = count === 1 ? 'post-images-fan single' : 'post-images-fan';
+            const center = (count - 1) / 2;
+
+            const items = images.map((img, index) => {
+                const offset = index - center;
+                const rotate = offset * 8;
+                const offsetAbs = Math.abs(Math.round(offset));
+                return `
+                    <div class="post-fan-item"
+                         style="--offset: ${offset}; --rotate: ${rotate}deg; --offset-abs: ${offsetAbs};"
+                         data-index="${index}"
+                         title="双击查看原图">
+                        <img src="${img.url}" alt="图片${index + 1}" loading="lazy" draggable="false">
+                    </div>
+                `;
+            }).join('');
+
+            return `<div class="${fanClass}" data-count="${count}" data-urls="${encodeURIComponent(JSON.stringify(urls))}">${items}</div>`;
+        }
+
+        function initPostImageFans() {
+            document.querySelectorAll('.post-images-fan').forEach(fan => {
+                if (fan.dataset.fanInit) return;
+                fan.dataset.fanInit = '1';
+
+                const items = fan.querySelectorAll('.post-fan-item');
+                const proximity = 140;
+
+                fan.addEventListener('mousemove', (e) => {
+                    const rect = fan.getBoundingClientRect();
+                    const pad = 60;
+                    const nearFan = e.clientX >= rect.left - pad && e.clientX <= rect.right + pad &&
+                                    e.clientY >= rect.top - pad && e.clientY <= rect.bottom + pad;
+                    fan.classList.toggle('is-expanded', nearFan);
+
+                    items.forEach(item => {
+                        const ir = item.getBoundingClientRect();
+                        const d = Math.hypot(
+                            e.clientX - (ir.left + ir.width / 2),
+                            e.clientY - (ir.top + ir.height / 2)
+                        );
+                        item.classList.toggle('is-focused', nearFan && d < proximity);
+                    });
+                });
+
+                fan.addEventListener('mouseleave', () => {
+                    fan.classList.remove('is-expanded');
+                    items.forEach(item => item.classList.remove('is-focused'));
+                });
+
+                fan.addEventListener('dblclick', (e) => {
+                    const item = e.target.closest('.post-fan-item');
+                    if (!item) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try {
+                        const urls = JSON.parse(decodeURIComponent(fan.dataset.urls || '%5B%5D'));
+                        const index = parseInt(item.dataset.index, 10) || 0;
+                        if (urls.length) openImagePreview(urls, index);
+                    } catch (err) {
+                        console.error('打开原图失败:', err);
+                    }
+                });
+            });
+        }
+
         function renderPost(post) {
-            const imagesHtml = post.images && post.images.length > 0 ? `
-                <div class="post-images-grid ${getImageGridClass(post.images.length)}">
-                    ${post.images.map((img, index) => `
-                        <div class="post-image-wrapper" onclick="openImagePreview(${JSON.stringify(post.images.map(i => i.url))}, ${index})">
-                            <img src="${img.url}" alt="图片${index + 1}">
-                        </div>
-                    `).join('')}
-                </div>
-            ` : '';
+            const imagesHtml = buildFanImagesHtml(post.images);
 
             const locationHtml = post.location ? `
                 <div class="post-location">📍 ${post.location}</div>
@@ -2259,7 +2568,7 @@
                 <div class="post-card">
                     <div class="post-header">
                         ${deleteBtn}
-                        <div class="post-avatar">${post.user_nickname?.charAt(0) || '👤'}</div>
+                        ${renderUserAvatarHtml(post.user_avatar, post.user_nickname)}
                         <div class="post-author">
                             <div class="post-author-name">${post.user_nickname || '匿名用户'}</div>
                             <div class="post-time">${formatPostTime(post.created_at)}</div>
@@ -2394,7 +2703,7 @@
                 <div class="comment-reply-section">
                     ${comment.replies.map(reply => `
                         <div class="comment-reply-item">
-                            <div class="comment-reply-avatar">${reply.user_nickname?.charAt(0) || '👤'}</div>
+                            ${renderUserAvatarHtml(reply.user_avatar, reply.user_nickname, 'comment-reply-avatar')}
                             <div class="comment-reply-content">
                                 <span class="comment-reply-author">${reply.user_nickname || '匿名用户'}</span>
                                 <span class="comment-reply-text">${reply.content}</span>
@@ -2411,7 +2720,7 @@
 
             return `
                 <div class="comment-item">
-                    <div class="comment-avatar">${comment.user_nickname?.charAt(0) || '👤'}</div>
+                    ${renderUserAvatarHtml(comment.user_avatar, comment.user_nickname, 'comment-avatar')}
                     <div class="comment-content">
                         <span class="comment-author">${comment.user_nickname || '匿名用户'}</span>
                         <span class="comment-text">${comment.content}</span>
@@ -2501,18 +2810,20 @@
             currentPreviewIndex = index;
             updateImagePreview();
             document.getElementById('imagePreviewOverlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
         }
 
         function closeImagePreview() {
             document.getElementById('imagePreviewOverlay').classList.remove('show');
             previewImages = [];
             currentPreviewIndex = 0;
+            document.body.style.overflow = '';
         }
 
         function updateImagePreview() {
             if (previewImages.length === 0) return;
             
-            const img = document.getElementById('previewImage');
+            const img = document.getElementById('communityPreviewImage');
             const counter = document.getElementById('imagePreviewCounter');
             
             img.src = previewImages[currentPreviewIndex];

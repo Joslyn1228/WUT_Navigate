@@ -1,0 +1,1150 @@
+/* ===== Montoni App Pages — 功能页统一样式 ===== */
+
+body.montoni-theme,
+body.page-app,
+body.page-home {
+    font-family: var(--font-song);
+    background: var(--montoni-bg);
+    color: var(--montoni-text);
+}
+
+body.montoni-theme *,
+body.montoni-theme input,
+body.montoni-theme button,
+body.montoni-theme textarea {
+    font-family: var(--font-song);
+}
+
+body.montoni-theme .sidebar,
+body.montoni-theme .mobile-toggle {
+    display: none !important;
+}
+
+body.montoni-theme .main-content,
+body.montoni-theme .main-content.shifted {
+    margin-left: 0 !important;
+}
+
+body.montoni-theme .content-container {
+    max-width: 100%;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+    background: transparent;
+    min-height: calc(100vh - 72px);
+}
+
+/* 功能页 Tab */
+body.montoni-theme .tab-content:not(#home) {
+    padding: 0;
+    min-height: calc(100vh - 72px);
+}
+
+body.montoni-theme .tab-content:not(#home).active {
+    display: block;
+}
+
+/* 全局顶栏 — 功能页固定白底 */
+body.page-app .montoni-header {
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 1px 0 var(--montoni-border);
+}
+
+body.page-home .montoni-header:not(.scrolled) {
+    background: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+
+body.page-home .montoni-header:not(.scrolled) .montoni-logo,
+body.page-home .montoni-header:not(.scrolled) .montoni-nav a:not(.montoni-nav-cta) {
+    color: #fff;
+}
+
+body.page-home .montoni-header:not(.scrolled) .montoni-menu-toggle span {
+    background: #fff;
+}
+
+body.page-home .montoni-header:not(.scrolled) .montoni-nav a.montoni-nav-cta {
+    background: #fff !important;
+    color: var(--montoni-dark) !important;
+}
+
+body.page-home .montoni-header:not(.scrolled) .montoni-nav a.montoni-nav-cta.active {
+    background: #fff !important;
+    color: var(--montoni-dark) !important;
+}
+
+body.montoni-theme .montoni-nav a.montoni-nav-cta.active {
+    background: var(--montoni-green) !important;
+    color: #fff !important;
+}
+
+/* 页面 Banner */
+.app-page-banner {
+    position: relative;
+    height: 320px;
+    margin-top: 72px;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+}
+
+.app-page-banner-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(17, 17, 17, 0.88) 0%, rgba(17, 17, 17, 0.35) 100%);
+}
+
+.app-page-banner-content {
+    position: relative;
+    z-index: 2;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 48px 40px;
+}
+
+.app-page-banner .home-section-label {
+    color: rgba(255, 255, 255, 0.55);
+    margin-bottom: 12px;
+}
+
+.app-page-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 300;
+    color: #fff;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-bottom: 12px;
+}
+
+.app-page-subtitle {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.75);
+    max-width: 560px;
+    line-height: 1.6;
+}
+
+.app-page-body {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+}
+
+/* Section Title */
+body.montoni-theme .section-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--montoni-green);
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 28px;
+    margin-top: 48px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+body.montoni-theme .section-title:first-child {
+    margin-top: 0;
+}
+
+body.montoni-theme .section-title span:first-child {
+    display: none;
+}
+
+/* Cards */
+body.montoni-theme .card {
+    background: var(--montoni-white);
+    border: 1px solid var(--montoni-border);
+    border-radius: 0;
+    box-shadow: none;
+    padding: 28px;
+    margin-bottom: 24px;
+}
+
+body.montoni-theme .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* Buttons */
+body.montoni-theme .btn {
+    border-radius: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 14px 28px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+body.montoni-theme .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.22) 50%, transparent 65%);
+    transform: translateX(-120%);
+    transition: transform 0.55s ease;
+    pointer-events: none;
+}
+
+body.montoni-theme .btn:hover::after {
+    transform: translateX(120%);
+}
+
+body.montoni-theme .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+body.montoni-theme .btn:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow: none;
+    transition-duration: 0.1s;
+}
+
+body.montoni-theme .btn-primary {
+    background: var(--montoni-dark);
+    color: #fff;
+}
+
+body.montoni-theme .btn-primary:hover {
+    background: var(--montoni-green);
+}
+
+body.montoni-theme .btn-secondary {
+    background: transparent;
+    color: var(--montoni-dark);
+    border: 1px solid var(--montoni-border);
+}
+
+body.montoni-theme .btn-secondary:hover {
+    border-color: var(--montoni-dark);
+    background: transparent;
+}
+
+body.montoni-theme .btn-sm {
+    padding: 10px 18px;
+    font-size: 0.6875rem;
+}
+
+/* Inputs */
+body.montoni-theme .input-field {
+    border-radius: 0;
+    border-color: var(--montoni-border);
+    padding: 16px 18px;
+    font-family: inherit;
+}
+
+body.montoni-theme .input-field:focus {
+    border-color: var(--montoni-dark);
+    box-shadow: none;
+}
+
+/* Stats Grid */
+body.montoni-theme .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    background: var(--montoni-border);
+    border: 1px solid var(--montoni-border);
+}
+
+body.montoni-theme .stat-item {
+    background: var(--montoni-white);
+    padding: 32px 24px;
+    text-align: center;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+body.montoni-theme .stat-value {
+    font-size: 2.5rem;
+    font-weight: 300;
+    color: var(--montoni-dark);
+    letter-spacing: -0.02em;
+}
+
+body.montoni-theme .stat-label {
+    font-size: 0.8125rem;
+    color: var(--montoni-muted);
+    margin-top: 8px;
+}
+
+/* Location */
+body.montoni-theme .location-indicator {
+    background: var(--montoni-white);
+    border: 1px solid var(--montoni-border);
+    border-radius: 0;
+    color: var(--montoni-muted);
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
+}
+
+body.montoni-theme .location-indicator.updated {
+    color: var(--montoni-green);
+    border-color: var(--montoni-green);
+}
+
+/* Nearby Alert */
+body.montoni-theme #nearbyAlert {
+    background: var(--montoni-dark) !important;
+    border-radius: 0 !important;
+    border-left: 4px solid var(--montoni-green) !important;
+}
+
+body.montoni-theme #nearbyAlert .btn:first-child {
+    background: #fff !important;
+    color: var(--montoni-dark) !important;
+}
+
+/* Guide — Place List */
+body.montoni-theme #placesList .list-item {
+    background: var(--montoni-white);
+    border: 1px solid var(--montoni-border);
+    border-radius: 0;
+    padding: 20px 24px;
+    margin-bottom: 2px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+body.montoni-theme #placesList .list-item:hover {
+    border-color: var(--montoni-dark);
+    background: #fafafa;
+}
+
+body.montoni-theme #placesList .list-icon {
+    border-radius: 0;
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+}
+
+body.montoni-theme #placesList .list-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    letter-spacing: -0.01em;
+}
+
+body.montoni-theme #placesList .list-subtitle {
+    font-size: 0.8125rem;
+    color: var(--montoni-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+body.montoni-theme .category-tabs .btn-primary {
+    background: var(--montoni-dark);
+}
+
+body.montoni-theme .category-tabs .btn-secondary,
+body.montoni-theme .category-tabs .btn:not(.btn-primary) {
+    background: transparent;
+    border: 1px solid var(--montoni-border);
+}
+
+/* Fitness */
+body.montoni-theme .workout-card {
+    background: var(--montoni-dark);
+    border-radius: 0;
+    padding: 48px 40px;
+    position: relative;
+    overflow: hidden;
+}
+
+body.montoni-theme .workout-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    background: var(--montoni-green);
+    opacity: 0.15;
+    border-radius: 50%;
+    transform: translate(40%, -40%);
+}
+
+body.montoni-theme .workout-stat-value {
+    font-weight: 300;
+    font-size: 2.75rem;
+    letter-spacing: -0.02em;
+}
+
+body.montoni-theme .workout-card .btn-secondary {
+    background: #fff;
+    color: var(--montoni-dark);
+    border: none;
+}
+
+/* Checkin */
+body.montoni-theme .checkin-button {
+    background: var(--montoni-green);
+    border-radius: 0;
+    padding: 24px;
+    font-size: 0.8125rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+body.montoni-theme .checkin-button:hover {
+    background: var(--montoni-green-light);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(46, 80, 53, 0.3);
+}
+
+body.montoni-theme .checkin-button:active {
+    transform: scale(0.98);
+}
+
+body.montoni-theme .checkin-success {
+    background: var(--montoni-dark) !important;
+}
+
+body.montoni-theme .current-activity-banner {
+    border-radius: 0;
+    background: var(--montoni-dark);
+    border-left: 4px solid var(--montoni-green);
+    box-shadow: none;
+    margin: 0 0 24px;
+}
+
+/* Achievements — Montoni light style */
+body.montoni-theme .achievements-header {
+    background: var(--montoni-dark);
+    border-radius: 0;
+    border: none;
+    padding: 32px;
+}
+
+body.montoni-theme .achievements-stat-value {
+    color: #fff;
+    font-weight: 300;
+    font-size: 2rem;
+}
+
+body.montoni-theme .achievements-stat-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+body.montoni-theme .filter-btn {
+    border-radius: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+
+body.montoni-theme .filter-btn:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+body.montoni-theme .filter-btn.active {
+    background: #fff;
+    color: var(--montoni-dark);
+    border-color: #fff;
+}
+
+body.montoni-theme .achievement-card {
+    background: var(--montoni-white);
+    border: 1px solid var(--montoni-border);
+    border-radius: 0;
+}
+
+body.montoni-theme .achievement-card::before {
+    height: 2px;
+    background: var(--montoni-border);
+}
+
+body.montoni-theme .achievement-card.earned::before {
+    background: var(--montoni-green);
+}
+
+body.montoni-theme .achievement-card.rare::before {
+    background: #4a7c59;
+}
+
+body.montoni-theme .achievement-card.epic::before {
+    background: var(--montoni-dark);
+}
+
+body.montoni-theme .achievement-card.legendary::before {
+    background: linear-gradient(90deg, var(--montoni-green), #6b9e7a);
+}
+
+body.montoni-theme .achievement-icon-wrapper {
+    background: var(--montoni-bg);
+    border: 1px solid var(--montoni-border);
+    border-radius: 0;
+}
+
+body.montoni-theme .achievement-name {
+    color: var(--montoni-dark);
+}
+
+body.montoni-theme .achievement-card.earned .achievement-name {
+    color: var(--montoni-green);
+}
+
+body.montoni-theme .achievement-desc {
+    color: var(--montoni-muted);
+}
+
+body.montoni-theme .achievement-progress-bar {
+    background: var(--montoni-border);
+    border-radius: 0;
+}
+
+body.montoni-theme .achievement-progress-fill {
+    background: var(--montoni-green);
+    border-radius: 0;
+}
+
+body.montoni-theme .achievements-grid {
+    padding: 0;
+    gap: 2px;
+    background: var(--montoni-border);
+}
+
+/* Activity Cards */
+body.montoni-theme .activities-grid {
+    padding: 0;
+    gap: 2px;
+}
+
+body.montoni-theme .activity-card {
+    background: var(--montoni-white);
+    border: 1px solid var(--montoni-border);
+    border-radius: 0;
+}
+
+body.montoni-theme .activity-card.active {
+    border-color: var(--montoni-green);
+    background: #f0f4f1;
+}
+
+body.montoni-theme .activity-card.active::before {
+    background: var(--montoni-green);
+    height: 3px;
+}
+
+body.montoni-theme .activity-name {
+    color: var(--montoni-dark);
+}
+
+body.montoni-theme .activity-desc,
+body.montoni-theme .activity-time-slots {
+    color: var(--montoni-muted);
+}
+
+body.montoni-theme .activity-icon-large {
+    background: var(--montoni-bg);
+    border: 1px solid var(--montoni-border);
+    border-radius: 0;
+}
+
+body.montoni-theme .activity-progress-bar {
+    background: var(--montoni-border);
+    border-radius: 0;
+}
+
+body.montoni-theme .activity-progress-fill {
+    background: var(--montoni-green);
+}
+
+body.montoni-theme .activity-card.active .activity-status {
+    background: var(--montoni-green);
+}
+
+body.montoni-theme .checkin-history-card {
+    border-radius: 0;
+    border: 1px solid var(--montoni-border);
+    box-shadow: none;
+    background: var(--montoni-white);
+}
+
+body.montoni-theme .checkin-history-icon {
+    border-radius: 0;
+    background: var(--montoni-dark);
+}
+
+/* Community */
+body.montoni-theme .post-card {
+    border-radius: 0;
+    border: 1px solid var(--montoni-border);
+    box-shadow: none;
+}
+
+body.montoni-theme .post-avatar {
+    border-radius: 50% !important;
+}
+
+body.montoni-theme .post-action:hover {
+    color: var(--montoni-green);
+}
+
+body.montoni-theme .image-upload-container {
+    border-radius: 0;
+    border-color: var(--montoni-border);
+}
+
+body.montoni-theme .image-upload-container:hover {
+    border-color: var(--montoni-dark);
+    background: var(--montoni-bg);
+}
+
+body.montoni-theme .location-picker {
+    border-radius: 0;
+    border: 1px solid var(--montoni-border);
+    background: var(--montoni-bg);
+}
+
+body.montoni-theme .location-btn {
+    border-radius: 0;
+    background: var(--montoni-dark);
+}
+
+/* Profile / Login */
+body.montoni-theme #profile .app-page-body {
+    max-width: 960px;
+}
+
+body.montoni-theme .login-form {
+    max-width: 960px;
+    margin: 0 auto;
+    background: var(--montoni-white);
+    border: 1px solid var(--montoni-border);
+    padding: 48px 40px;
+}
+
+body.montoni-theme .login-form .modal-header {
+    font-size: 1.75rem;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--montoni-dark);
+    text-align: left;
+    margin-bottom: 32px;
+}
+
+body.montoni-theme .login-link a {
+    color: var(--montoni-green);
+}
+
+body.montoni-theme .forgot-link {
+    color: var(--montoni-muted);
+    font-size: 0.8125rem;
+}
+
+/* Profile custom background */
+.profile-tab {
+    position: relative;
+    overflow: hidden;
+}
+
+.profile-custom-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 0.45s ease;
+}
+
+.profile-tab.has-custom-bg .profile-custom-bg {
+    opacity: 1;
+}
+
+.profile-custom-bg-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(10, 10, 10, 0.42);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+}
+
+.profile-tab.has-custom-bg .profile-custom-bg-overlay {
+    opacity: 1;
+    background: rgba(10, 10, 10, 0.18);
+}
+
+.profile-page-inner {
+    position: relative;
+    z-index: 2;
+}
+
+.profile-tab.has-custom-bg .profile-banner {
+    visibility: hidden;
+    height: 72px;
+    min-height: 72px;
+    margin-top: 0;
+}
+
+.profile-tab.has-custom-bg .profile-banner .app-page-banner-content {
+    opacity: 0;
+}
+
+.profile-bg-toolbar {
+    display: flex;
+    gap: 12px;
+    padding: 16px 60px 0;
+    flex-wrap: wrap;
+}
+
+.profile-bg-upload-label {
+    cursor: pointer;
+}
+
+body.montoni-theme #profileContent {
+    background: var(--montoni-white);
+    border: 1px solid var(--montoni-border);
+    padding: 0;
+    width: 100%;
+}
+
+body.montoni-theme .profile-tab.has-custom-bg #profileContent {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+body.montoni-theme .profile-tab.has-custom-bg .profile-info {
+    background: rgba(17, 17, 17, 0.45);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body.montoni-theme .profile-tab.has-custom-bg .profile-name,
+body.montoni-theme .profile-tab.has-custom-bg .profile-email,
+body.montoni-theme .profile-tab.has-custom-bg .profile-bio,
+body.montoni-theme .profile-tab.has-custom-bg .profile-status {
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+body.montoni-theme .profile-tab.has-custom-bg .login-form {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(10px);
+}
+
+/* 圆形头像 — 全局 */
+body.montoni-theme .profile-avatar {
+    border-radius: 50%;
+    background: var(--montoni-green);
+    background-size: cover;
+    background-position: center;
+    width: 120px;
+    height: 120px;
+    font-size: 2.5rem;
+    overflow: hidden;
+}
+
+body.montoni-theme .avatar-edit-btn {
+    border-radius: 50%;
+}
+
+body.montoni-theme .post-avatar,
+body.montoni-theme .comment-avatar,
+body.montoni-theme .comment-reply-avatar {
+    border-radius: 50% !important;
+    overflow: hidden;
+    background-size: cover !important;
+    background-position: center !important;
+}
+
+body.montoni-theme .post-avatar.has-image,
+body.montoni-theme .comment-avatar.has-image {
+    color: transparent;
+}
+
+body.montoni-theme .floating-chat-btn {
+    background: var(--montoni-dark);
+    border-radius: 50% !important;
+    width: 56px;
+    height: 56px;
+    font-size: 1.25rem;
+    overflow: hidden;
+    transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+body.montoni-theme .floating-chat-btn:hover {
+    background: var(--montoni-green);
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 8px 24px rgba(46, 80, 53, 0.4);
+}
+
+body.montoni-theme .avatar.user,
+body.montoni-theme .avatar.bot {
+    border-radius: 50% !important;
+    overflow: hidden;
+}
+
+body.montoni-theme .avatar.user.has-image,
+body.montoni-theme .avatar.bot.has-image {
+    color: transparent;
+    background-color: #eee;
+}
+
+body.montoni-theme .avatar-grid .avatar-option {
+    border-radius: 50%;
+}
+
+body.montoni-theme #uploadedAvatarPreview img {
+    border-radius: 50% !important;
+}
+
+body.montoni-theme .profile-info {
+    padding: 56px 60px;
+    background: var(--montoni-dark);
+    color: #fff;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto auto auto;
+    gap: 6px 48px;
+    align-items: center;
+    text-align: left;
+}
+
+body.montoni-theme .profile-avatar-container {
+    grid-row: 1 / -1;
+    align-self: center;
+    margin: 0;
+}
+
+body.montoni-theme .profile-name {
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.75rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 0;
+}
+
+body.montoni-theme .profile-status {
+    font-size: 1.25rem;
+}
+
+body.montoni-theme .profile-email {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.9375rem;
+}
+
+body.montoni-theme .profile-bio {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9375rem;
+    margin-top: 4px;
+}
+
+body.montoni-theme .profile-stats {
+    border-color: var(--montoni-border);
+    margin: 0;
+    padding: 40px 60px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+body.montoni-theme .profile-stat {
+    padding: 16px;
+    border: 1px solid var(--montoni-border);
+    transition: border-color 0.3s ease, transform 0.3s ease;
+}
+
+body.montoni-theme .profile-stat:hover {
+    border-color: var(--montoni-green);
+    transform: translateY(-3px);
+}
+
+body.montoni-theme .profile-stat-value {
+    color: var(--montoni-dark);
+    font-weight: 700;
+    font-size: 2.25rem;
+}
+
+body.montoni-theme .list-group {
+    padding: 0 60px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 40px;
+}
+
+body.montoni-theme .list-item {
+    border-bottom: 1px solid var(--montoni-border);
+    padding: 24px 0;
+    border-radius: 0;
+    transition: padding-left 0.25s ease, background 0.25s ease;
+}
+
+body.montoni-theme .list-item:hover {
+    padding-left: 8px;
+    background: var(--montoni-bg);
+}
+
+body.montoni-theme .list-item span:last-child {
+    transition: transform 0.25s ease;
+}
+
+body.montoni-theme .list-item:hover span:last-child {
+    transform: translateX(4px);
+}
+
+body.montoni-theme .list-icon {
+    border-radius: 0;
+    background: var(--montoni-bg) !important;
+    color: var(--montoni-dark);
+    border: 1px solid var(--montoni-border);
+    font-size: 1.1rem;
+}
+
+body.montoni-theme .logout-btn {
+    border-radius: 0;
+    background: transparent;
+    color: var(--montoni-muted);
+    border: 1px solid var(--montoni-border);
+    margin: 32px 60px;
+    width: calc(100% - 120px);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    transition: border-color 0.25s ease, color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+body.montoni-theme .logout-btn:hover {
+    border-color: #c0392b;
+    color: #c0392b;
+    background: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(192, 57, 43, 0.15);
+}
+
+/* Modals */
+body.montoni-theme .modal-content {
+    border-radius: 0;
+    max-width: 480px;
+    padding: 32px;
+}
+
+body.montoni-theme .modal-header {
+    text-align: left;
+    font-weight: 400;
+    font-size: 1.25rem;
+}
+
+body.montoni-theme .modal-overlay {
+    background: rgba(17, 17, 17, 0.7);
+}
+
+/* Floating Chat */
+body.montoni-theme .floating-chat-panel {
+    border-radius: 0;
+    border: 1px solid var(--montoni-border);
+}
+
+body.montoni-theme .floating-chat-header {
+    background: var(--montoni-dark);
+    border-radius: 0;
+}
+
+body.montoni-theme .message.user .message-content {
+    background: var(--montoni-dark);
+    border-radius: 0;
+}
+
+body.montoni-theme .message.bot .message-content {
+    border-radius: 0;
+    background: var(--montoni-bg);
+}
+
+/* Map Modal */
+body.montoni-theme .map-content {
+    border-radius: 0;
+}
+
+body.montoni-theme .map-header {
+    background: var(--montoni-dark);
+    border-radius: 0;
+}
+
+body.montoni-theme .gaode-btn {
+    border-radius: 0;
+    background: var(--montoni-green);
+}
+
+body.montoni-theme .step-number {
+    border-radius: 0;
+    background: var(--montoni-dark);
+}
+
+body.montoni-theme .loading-spinner {
+    border-top-color: var(--montoni-green);
+    border-radius: 50%;
+}
+
+body.montoni-theme .empty-state {
+    padding: 80px 20px;
+    color: var(--montoni-muted);
+}
+
+/* App Footer (功能页) */
+.app-page-footer {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 40px;
+    border-top: 1px solid var(--montoni-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--montoni-muted);
+    letter-spacing: 0.04em;
+}
+
+@media (max-width: 1024px) {
+    body.montoni-theme .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .app-page-body {
+        padding: 32px 24px 60px;
+    }
+
+    .app-page-banner-content {
+        padding: 32px 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    body.montoni-theme #profile .app-page-body {
+        max-width: 100%;
+    }
+
+    body.montoni-theme .profile-bg-toolbar {
+        padding: 16px 24px 0;
+    }
+
+    body.montoni-theme .profile-info {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        text-align: center;
+        padding: 40px 24px;
+        gap: 12px;
+    }
+
+    body.montoni-theme .profile-avatar-container {
+        grid-row: auto;
+        justify-self: center;
+    }
+
+    body.montoni-theme .profile-stats {
+        grid-template-columns: 1fr;
+        padding: 24px;
+    }
+
+    body.montoni-theme .list-group {
+        grid-template-columns: 1fr;
+        padding: 0 24px;
+    }
+
+    body.montoni-theme .logout-btn {
+        margin: 24px;
+        width: calc(100% - 48px);
+    }
+
+    .app-page-banner {
+        height: 260px;
+    }
+
+    body.montoni-theme .achievements-header {
+        flex-direction: column;
+        gap: 20px;
+        align-items: flex-start;
+    }
+
+    body.montoni-theme .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .app-page-footer {
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+        padding: 24px 20px;
+    }
+}
+
+/* 智能讲解页 — 武理校园背景 */
+.guide-tab {
+    position: relative;
+    overflow: hidden;
+}
+
+.guide-page-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: url('/static/images/guide-banner.jpg') center 20% / cover no-repeat;
+    background-attachment: scroll;
+}
+
+.guide-page-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.72);
+    pointer-events: none;
+}
+
+.guide-page-inner {
+    position: relative;
+    z-index: 2;
+}
+
+.guide-tab .guide-banner {
+    background-image: url('/static/images/guide-banner.jpg');
+    background-size: cover;
+    background-position: center 12%;
+    height: 360px;
+}
+
+.guide-tab .guide-banner .app-page-banner-overlay {
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.72) 0%,
+        rgba(0, 0, 0, 0.25) 55%,
+        rgba(0, 0, 0, 0.08) 100%
+    );
+}
+
+body.montoni-theme .guide-tab .guide-page-body .card,
+body.montoni-theme .guide-tab .guide-page-body .location-indicator,
+body.montoni-theme .guide-tab #placesList .list-item {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+body.montoni-theme .guide-tab .app-page-footer {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(6px);
+}

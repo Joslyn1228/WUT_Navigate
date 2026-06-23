@@ -7,6 +7,11 @@ class Location(BaseModel):
     longitude: float
     address: Optional[str] = None
 
+class ChatMessage(BaseModel):
+    """对话消息"""
+    role: str
+    content: str
+
 class PlaceInfo(BaseModel):
     """场所信息"""
     name: str
